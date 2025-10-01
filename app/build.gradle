@@ -20,7 +20,8 @@ android {
             // 仅在存在 ANDROID_KEYSTORE_PATH 时设置签名文件与凭据
             def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
             if (ksPath) {
-                storeFile file(ksPath)
+                // 改为从项目根目录解析路径，避免相对 app/ 目录导致找不到 keystore
+                storeFile rootProject.file(ksPath)
                 storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("ANDROID_KEY_ALIAS")
                 keyPassword System.getenv("ANDROID_KEY_PASSWORD")
