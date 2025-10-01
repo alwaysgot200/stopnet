@@ -85,7 +85,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
-
+    <Switch
+        android:id="@+id/swAutoStart"
+        android:text="@string/auto_start_on_boot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
     <TextView
         android:id="@+id/tvWhitelistTitle"
         android:text="@string/whitelist_apps"

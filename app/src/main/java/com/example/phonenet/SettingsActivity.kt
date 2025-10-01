@@ -67,6 +67,8 @@ class SettingsActivity : AppCompatActivity() {
 
         // 如存在开机自启控件
         swAutoStart = findViewById(R.id.swAutoStart)
+        // 预填开机自启状态
+        swAutoStart.isChecked = prefs.getBoolean("auto_start_on_boot", false)
 
         // PIN 门禁
         checkAndGateByPin()
@@ -208,6 +210,10 @@ class SettingsActivity : AppCompatActivity() {
             putString("smtp_user", user)
             putString("smtp_pass", pass)
             putString("smtp_from", from)
+            val autoStart = swAutoStart.isChecked
+            prefs.edit().apply {
+                putBoolean("auto_start_on_boot", autoStart)
+            }.apply()
         }.apply()
 
         // DPS 存储（未解锁阶段需要的配置）
