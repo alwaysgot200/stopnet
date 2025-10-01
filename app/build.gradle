@@ -32,6 +32,14 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    packaging {
+        resources {
+            // 仅排除冲突的文件，如果还出现 LICENSE 等冲突可按需添加
+            excludes += ["META-INF/NOTICE.md"]
+            // 如果你希望保留一个而不是排除，可改用：
+            // pickFirsts += ["META-INF/NOTICE.md"]
+        }
+    }
 }
 
 dependencies {
