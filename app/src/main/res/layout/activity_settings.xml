@@ -26,12 +26,65 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
 
-    <Switch
-        android:id="@+id/swAutoStart"
-        android:text="@string/auto_start_on_boot"
+    <!-- SMTP 配置 -->
+    <TextView
+        android:text="@string/smtp_settings"
+        android:textStyle="bold"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"/>
+        android:layout_marginTop="16dp"/>
+
+    <EditText
+        android:id="@+id/etSmtpHost"
+        android:hint="@string/smtp_host"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/etSmtpPort"
+        android:hint="@string/smtp_port"
+        android:inputType="number"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Switch
+        android:id="@+id/swSmtpSsl"
+        android:text="@string/smtp_ssl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Switch
+        android:id="@+id/swSmtpTls"
+        android:text="@string/smtp_tls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/etSmtpUser"
+        android:hint="@string/smtp_user"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/etSmtpPass"
+        android:hint="@string/smtp_pass"
+        android:inputType="textPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/etSmtpFrom"
+        android:hint="@string/smtp_from"
+        android:inputType="textEmailAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/btnTestSmtp"
+        android:text="@string/smtp_test"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"/>
 
     <TextView
         android:id="@+id/tvWhitelistTitle"

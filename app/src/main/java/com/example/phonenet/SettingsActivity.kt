@@ -27,6 +27,18 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnSaveEmail: Button
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
+
+    // SMTP 配置
+    private lateinit var etSmtpHost: EditText
+    private lateinit var etSmtpPort: EditText
+    private lateinit var swSmtpTls: android.widget.Switch
+    private lateinit var swSmtpSsl: android.widget.Switch
+    private lateinit var etSmtpUser: EditText
+    private lateinit var etSmtpPass: EditText
+    private lateinit var etSmtpFrom: EditText
+    private lateinit var btnTestSmtp: Button
+
+    // 开机自启（如果你已增加该开关）
     private lateinit var swAutoStart: android.widget.Switch
 
     private val prefs by lazy { getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
@@ -42,23 +54,50 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveEmail = findViewById(R.id.btnSaveEmail)
         etParentEmail = findViewById(R.id.etParentEmail)
         rvApps = findViewById(R.id.rvApps)
+
+        // 绑定 SMTP 控件
+        etSmtpHost = findViewById(R.id.etSmtpHost)
+        etSmtpPort = findViewById(R.id.etSmtpPort)
+        swSmtpTls = findViewById(R.id.swSmtpTls)
+        swSmtpSsl = findViewById(R.id.swSmtpSsl)
+        etSmtpUser = findViewById(R.id.etSmtpUser)
+        etSmtpPass = findViewById(R.id.etSmtpPass)
+        etSmtpFrom = findViewById(R.id.etSmtpFrom)
+        btnTestSmtp = findViewById(R.id.btnTestSmtp)
+
+        // 如存在开机自启控件
         swAutoStart = findViewById(R.id.swAutoStart)
+
         // PIN 门禁
         checkAndGateByPin()
+
         // 预填家长邮箱
         etParentEmail.setText(prefs.getString("parent_email", ""))
 
-        // 预填开机自启开关（正常存储优先，DPS 作为回退）
-        swAutoStart.isChecked = prefs.getBoolean("auto_start_on_boot", dpsPrefs.getBoolean("auto_start_on_boot", true))
+        // 预填 SMTP 配置（正常存储优先，DPS 作为回退）
+        etSmtpHost.setText(prefs.getString("smtp_host", dpsPrefs.getString("smtp_host", "")))
+        val defPort = if (prefs.getBoolean("smtp_ssl", dpsPrefs.getBoolean("smtp_ssl", false))) 465 else 587
+        etSmtpPort.setText((prefs.getInt("smtp_port", dpsPrefs.getInt("smtp_port", defPort))).toString())
+        swSmtpSsl.isChecked = prefs.getBoolean("smtp_ssl", dpsPrefs.getBoolean("smtp_ssl", false))
+        swSmtpTls.isChecked = prefs.getBoolean("smtp_tls", dpsPrefs.getBoolean("smtp_tls", !swSmtpSsl.isChecked))
 
-        // 加载应用列表
-        loadLaunchableApps()
-        adapter = AppAdapter(appItems)
-        rvApps.layoutManager = LinearLayoutManager(this)
-        rvApps.adapter = adapter
+        // SSL/TLS 互斥：选了 SSL 则关闭 TLS
+        swSmtpSsl.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                swSmtpTls.isChecked = false
+                if ((etSmtpPort.text?.toString()?.toIntOrNull() ?: 0) == 0) {
+                    etSmtpPort.setText("465")
+                }
+            } else {
+                if ((etSmtpPort.text?.toString()?.toIntOrNull() ?: 0) == 465) {
+                    etSmtpPort.setText("587")
+                }
+            }
+        }
 
         btnEnableAdmin.setOnClickListener { requestDeviceAdmin() }
         btnSaveEmail.setOnClickListener { saveSettings() }
+        btnTestSmtp.setOnClickListener { sendTestEmail() }
     }
 
     private fun checkAndGateByPin() {
@@ -148,16 +187,56 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveSettings() {
         val email = etParentEmail.text?.toString()?.trim()
         val selected = adapter.getSelectedPackages().toMutableSet()
-        // 同步写入正常存储与设备保护存储（保证未解锁阶段可读取）
+
+        // 读取 SMTP 输入
+        val host = etSmtpHost.text?.toString()?.trim() ?: ""
+        val port = etSmtpPort.text?.toString()?.toIntOrNull() ?: if (swSmtpSsl.isChecked) 465 else 587
+        val tls = swSmtpTls.isChecked
+        val ssl = swSmtpSsl.isChecked
+        val user = etSmtpUser.text?.toString()?.trim() ?: ""
+        val pass = etSmtpPass.text?.toString()?.trim() ?: ""
+        val from = etSmtpFrom.text?.toString()?.trim() ?: ""
+
+        // 正常存储
         prefs.edit().apply {
             putString("parent_email", email)
             putStringSet("whitelist_packages", selected)
-            putBoolean("auto_start_on_boot", swAutoStart.isChecked)
+            putString("smtp_host", host)
+            putInt("smtp_port", port)
+            putBoolean("smtp_tls", tls)
+            putBoolean("smtp_ssl", ssl)
+            putString("smtp_user", user)
+            putString("smtp_pass", pass)
+            putString("smtp_from", from)
         }.apply()
+
+        // DPS 存储（未解锁阶段需要的配置）
         dpsPrefs.edit().apply {
             putStringSet("whitelist_packages", selected)
-            putBoolean("auto_start_on_boot", swAutoStart.isChecked)
+            putString("smtp_host", host)
+            putInt("smtp_port", port)
+            putBoolean("smtp_tls", tls)
+            putBoolean("smtp_ssl", ssl)
+            putString("smtp_user", user)
+            putString("smtp_pass", pass)
+            putString("smtp_from", from)
         }.apply()
+    }
+
+    private fun sendTestEmail() {
+        val to = etParentEmail.text?.toString()?.trim()
+        if (to.isNullOrEmpty()) {
+            android.widget.Toast.makeText(this, "请先填写家长邮箱", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val subject = getString(R.string.smtp_test_subject)
+        val body = getString(R.string.smtp_test_body)
+        try {
+            com.example.phonenet.mail.MailJobIntentService.enqueue(this, to, subject, body)
+            android.widget.Toast.makeText(this, "测试邮件已发送（请查看收件箱）", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            android.widget.Toast.makeText(this, "发送失败，请检查配置", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }
 

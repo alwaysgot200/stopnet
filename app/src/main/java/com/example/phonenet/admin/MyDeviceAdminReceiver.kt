@@ -16,16 +16,12 @@ class MyDeviceAdminReceiver : DeviceAdminReceiver() {
         val prefs = context.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val email = prefs.getString("parent_email", null)
         if (!email.isNullOrBlank()) {
-            val subject = Uri.encode("【PhoneNet】设备管理停用提醒")
-            val body = Uri.encode("设备管理权限正在被停用，可能即将卸载应用。请注意孩子的上网行为。")
-            val mailUri = Uri.parse("mailto:$email?subject=$subject&body=$body")
-            val mailIntent = Intent(Intent.ACTION_SENDTO, mailUri).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val subject = "【PhoneNet】设备管理停用提醒"
+            val body = "设备管理权限正在被停用，可能即将卸载应用。请注意孩子的上网行为。"
             try {
-                context.startActivity(mailIntent)
+                com.example.phonenet.mail.MailJobIntentService.enqueue(context, email, subject, body)
             } catch (_: Exception) {
-                // 没有邮件客户端时忽略
+                // 忽略发送失败
             }
         }
         return "停用设备管理将允许卸载本应用，并可能解除网络管控。"
