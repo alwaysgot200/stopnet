@@ -34,10 +34,15 @@ android {
     }
     packaging {
         resources {
-            // 仅排除冲突的文件，如果还出现 LICENSE 等冲突可按需添加
-            excludes += ["META-INF/NOTICE.md"]
-            // 如果你希望保留一个而不是排除，可改用：
-            // pickFirsts += ["META-INF/NOTICE.md"]
+            // 二选一保留一个，避免报错
+            pickFirsts += [
+                "META-INF/NOTICE.md",
+                "META-INF/LICENSE.md",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt"
+            ]
         }
     }
 }
