@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">PhoneNet</string>
+    <string name="vpn_permission_required">需要开启 VPN 权限来进行网络管控</string>
+    <string name="start_vpn">启动管控</string>
+    <string name="stop_vpn">停止管控</string>
+    <string name="open_settings">打开设置</string>
+    <string name="enter_pin">请输入设置 PIN</string>
+    <string name="set_pin">设置 PIN</string>
+    <string name="confirm_pin">确认 PIN</string>
+    <string name="wrong_pin">PIN 不正确</string>
+    <string name="admin_enable">启用设备管理权限</string>
+    <string name="parent_email">家长邮箱</string>
+    <string name="save">保存</string>
+    <string name="whitelist_apps">白名单应用（允许上网）：</string>
+    <string name="vpn_running">网络管控运行中</string>
+</resources>

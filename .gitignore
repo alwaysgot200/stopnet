@@ -1,0 +1,40 @@
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local configuration (should not be committed)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code (optional, avoid per-developer settings)
+.vscode/
+
+# NDK / CMake
+.cxx/
+.externalNativeBuild/
+
+# Captures (Android Studio screenshots, etc.)
+captures/
+
+# Android build outputs
+*.apk
+*.ap_
+*.aab
+
+# Keystore files (sensitive)
+**/*.jks
+**/*.keystore
