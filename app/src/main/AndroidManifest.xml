@@ -13,7 +13,7 @@
         android:icon="@android:drawable/ic_menu_info_details"
         android:roundIcon="@android:drawable/ic_menu_info_details"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
 
         <activity
             android:name="com.example.phonenet.MainActivity"
