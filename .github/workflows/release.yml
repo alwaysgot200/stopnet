@@ -23,7 +23,19 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: Prepare Keystore
+        shell: pwsh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [System.IO.File]::WriteAllBytes("phonenet.jks", [System.Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+
       - name: Build Release APK
+        env:
+          ANDROID_KEYSTORE_PATH: phonenet.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: .\gradlew.bat assembleRelease
 
       - name: Upload Artifact
