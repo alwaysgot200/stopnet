@@ -14,7 +14,6 @@
     <string name="whitelist_apps">白名单应用（允许上网）：</string>
     <string name="vpn_running">网络管控运行中</string>
     <string name="auto_start_on_boot">开机自动启动</string>
-    <string name="auto_start_on_boot">开机自动启动</string>
     <string name="smtp_settings">SMTP 邮件设置</string>
     <string name="smtp_host">SMTP 服务器</string>
     <string name="smtp_port">端口（SSL默认465，TLS默认587）</string>
