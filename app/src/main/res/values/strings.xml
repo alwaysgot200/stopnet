@@ -13,4 +13,6 @@
     <string name="save">保存</string>
     <string name="whitelist_apps">白名单应用（允许上网）：</string>
     <string name="vpn_running">网络管控运行中</string>
+    <string name="auto_start_on_boot">开机自动启动</string>
+    <string name="auto_start_on_boot">开机自动启动</string>
 </resources>

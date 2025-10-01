@@ -27,8 +27,10 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnSaveEmail: Button
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
+    private lateinit var swAutoStart: android.widget.Switch
 
     private val prefs by lazy { getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
+    private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
     private val appItems = mutableListOf<AppItem>()
     private lateinit var adapter: AppAdapter
 
@@ -40,12 +42,14 @@ class SettingsActivity : AppCompatActivity() {
         btnSaveEmail = findViewById(R.id.btnSaveEmail)
         etParentEmail = findViewById(R.id.etParentEmail)
         rvApps = findViewById(R.id.rvApps)
-
+        swAutoStart = findViewById(R.id.swAutoStart)
         // PIN 门禁
         checkAndGateByPin()
-
         // 预填家长邮箱
         etParentEmail.setText(prefs.getString("parent_email", ""))
+
+        // 预填开机自启开关（正常存储优先，DPS 作为回退）
+        swAutoStart.isChecked = prefs.getBoolean("auto_start_on_boot", dpsPrefs.getBoolean("auto_start_on_boot", true))
 
         // 加载应用列表
         loadLaunchableApps()
@@ -144,9 +148,15 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveSettings() {
         val email = etParentEmail.text?.toString()?.trim()
         val selected = adapter.getSelectedPackages().toMutableSet()
+        // 同步写入正常存储与设备保护存储（保证未解锁阶段可读取）
         prefs.edit().apply {
             putString("parent_email", email)
             putStringSet("whitelist_packages", selected)
+            putBoolean("auto_start_on_boot", swAutoStart.isChecked)
+        }.apply()
+        dpsPrefs.edit().apply {
+            putStringSet("whitelist_packages", selected)
+            putBoolean("auto_start_on_boot", swAutoStart.isChecked)
         }.apply()
     }
 }

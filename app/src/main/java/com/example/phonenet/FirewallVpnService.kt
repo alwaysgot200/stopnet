@@ -36,7 +36,22 @@ class FirewallVpnService : VpnService() {
     private fun setupAndStartVpn() {
         // 防止重复启动导致资源重复占用
         if (vpnInterface != null && workerThread?.isAlive == true) return
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+
+        // 根据是否解锁选择读取的存储（DPS 在未解锁）
+        val prefs = run {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                val um = getSystemService(android.os.UserManager::class.java)
+                if (um?.isUserUnlocked == false) {
+                    val dpsCtx = createDeviceProtectedStorageContext()
+                    dpsCtx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                } else {
+                    getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                }
+            } else {
+                getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            }
+        }
+
         val whitelist = prefs.getStringSet("whitelist_packages", emptySet()) ?: emptySet()
 
         val builder = Builder()
