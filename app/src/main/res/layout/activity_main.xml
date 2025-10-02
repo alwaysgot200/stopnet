@@ -5,18 +5,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- 合并为一个切换按钮：根据状态显示“启动管控/停止管控” -->
     <Button
-        android:id="@+id/btnStartVpn"
+        android:id="@+id/btnToggleVpn"
         android:text="@string/start_vpn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
-
-    <Button
-        android:id="@+id/btnStopVpn"
-        android:text="@string/stop_vpn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"/>
 
     <Button
         android:id="@+id/btnSettings"

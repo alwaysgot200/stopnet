@@ -26,9 +26,13 @@ class FirewallVpnService : VpnService() {
         try {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_running", true).apply()
+            // 启动时清除“用户手动停止”标记
+            p1.edit().putBoolean("vpn_user_stop", false).apply()
+
             val dps = createDeviceProtectedStorageContext()
                 .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", true).apply()
+            dps.edit().putBoolean("vpn_user_stop", false).apply()
         } catch (_: Exception) { }
 
         return START_STICKY
@@ -43,25 +47,31 @@ class FirewallVpnService : VpnService() {
         stopForeground(true)
 
         // 清除运行标记
+        var userStopped = false
         try {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_running", false).apply()
+            userStopped = userStopped || p1.getBoolean("vpn_user_stop", false)
+
             val dps = createDeviceProtectedStorageContext()
                 .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", false).apply()
+            userStopped = userStopped || dps.getBoolean("vpn_user_stop", false)
         } catch (_: Exception) { }
 
-        // 被系统/用户杀掉后，安排几秒后的重启广播，由 BootReceiver 负责检查并拉起
-        try {
-            val am = getSystemService(android.app.AlarmManager::class.java)
-            val intent = Intent("com.example.phonenet.ACTION_RESTART_VPN").apply {
-                `package` = packageName
-            }
-            val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
-                (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
-            val pi = android.app.PendingIntent.getBroadcast(this, 1001, intent, flags)
-            am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 3000, pi)
-        } catch (_: Exception) { }
+        // 若不是手动停止，安排自恢复；否则不重启
+        if (!userStopped) {
+            try {
+                val am = getSystemService(android.app.AlarmManager::class.java)
+                val intent = Intent("com.example.phonenet.ACTION_RESTART_VPN").apply {
+                    `package` = packageName
+                }
+                val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
+                val pi = android.app.PendingIntent.getBroadcast(this, 1001, intent, flags)
+                am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 3000, pi)
+            } catch (_: Exception) { }
+        }
     }
 
     // 当用户在最近任务里清理你的任务时，某些系统会尝试停止服务；这里立即自恢复

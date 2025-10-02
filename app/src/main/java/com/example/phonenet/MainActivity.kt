@@ -13,31 +13,32 @@ import androidx.core.content.ContextCompat
 import android.content.Context
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var btnStart: Button
-    private lateinit var btnStop: Button
+    private lateinit var btnToggleVpn: Button
     private lateinit var btnSettings: Button
     private lateinit var btnIgnoreBattery: Button
     private var hasResumedOnce = false
-    private var isPinDialogShowing = false
+    private var pendingShowPinAfterFlow = false
+    private var didShowPin = false
+    private lateinit var btnStart: Button
+    private lateinit var btnStop: Button
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnStart = findViewById(R.id.btnStartVpn)
-        btnStop = findViewById(R.id.btnStopVpn)
+        btnToggleVpn = findViewById(R.id.btnToggleVpn)
         btnSettings = findViewById(R.id.btnSettings)
+        btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
 
-        btnStart.setOnClickListener { startVpn() }
-        btnStop.setOnClickListener { stopVpn() }
+        btnToggleVpn.setOnClickListener { toggleVpn() }
         btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
-        btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
 
-        // 首次启动进行 PIN 检查
-        checkAndGateByPin()
+        // 冷启动自动尝试启动管控；权限流程结束后再弹 PIN（按你的策略）
+        attemptAutoStartOnLaunch()
+        updateBatteryButtonState()
+        updateToggleButtonState()
     }
 
     companion object {
@@ -85,26 +86,34 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            // 如果本应用是设备所有者（DO），进入锁定任务（Kiosk）以防止随意退出与设置篡改
+            // 如果是设备所有者（DO），进入锁定任务（Kiosk）
             try {
                 val dpm = getSystemService(android.app.admin.DevicePolicyManager::class.java)
                 if (dpm?.isDeviceOwnerApp(packageName) == true) {
                     startLockTask()
                 }
-            } catch (_: Exception) {
-                // 安全忽略
-            }
+            } catch (_: Exception) { }
+            updateToggleButtonState()
         }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PREPARE_VPN_REQ && resultCode == RESULT_OK) {
-            val serviceIntent = Intent(this, FirewallVpnService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
+        if (requestCode == PREPARE_VPN_REQ) {
+            if (resultCode == RESULT_OK) {
+                val serviceIntent = Intent(this, FirewallVpnService::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
+                }
+                updateToggleButtonState()
+            }
+            // 仅在未开启“自动启动”时，才在权限流程后弹 PIN
+            val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val autoStart = prefs.getBoolean("auto_start_on_boot", true)
+            if (!autoStart) {
+                showPinIfNeeded()
             }
         }
     }
@@ -114,16 +123,45 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_NOTIF) {
             val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             if (granted) {
-                startVpn()
+                // 按“自动启动”策略继续
+                attemptAutoStartOnLaunch()
             } else {
-                android.widget.Toast.makeText(this, "需要通知权限以启动前台服务", android.widget.Toast.LENGTH_SHORT).show()
+                // 未开启自动启动时，继续 PIN 门禁一次
+                val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                val autoStart = prefs.getBoolean("auto_start_on_boot", true)
+                if (!autoStart) {
+                    showPinIfNeeded()
+                }
             }
         }
     }
 
+    private fun toggleVpn() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val running = prefs.getBoolean("vpn_running", false)
+        if (running) {
+            stopVpn()
+        } else {
+            startVpn()
+        }
+    }
+
     private fun stopVpn() {
+        // 标记为“用户手动停止”，服务 onDestroy 据此不安排自恢复
+        try {
+            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            p1.edit().putBoolean("vpn_user_stop", true).apply()
+            val dps = createDeviceProtectedStorageContext()
+                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            dps.edit().putBoolean("vpn_user_stop", true).apply()
+        } catch (_: Exception) { }
+
         val serviceIntent = Intent(this, FirewallVpnService::class.java)
         stopService(serviceIntent)
+
+        updateToggleButtonState()
+        // 停止后刷新按钮显示
+        updateButtonsState()
     }
 
     private fun requestIgnoreBatteryOptimizations() {
@@ -156,7 +194,6 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndGateByPin() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val saved = prefs.getString("pin", null)
-        if (isPinDialogShowing) return
         if (saved.isNullOrEmpty()) {
             showSetPinDialog()
         } else {
@@ -219,10 +256,90 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() {
         super.onResume()
-        // 首次启动的 onResume 不再重复检查；之后每次回到前台都检查
-        if (hasResumedOnce) {
-            checkAndGateByPin()
-        }
+        // 不二次弹 PIN；刷新电池优化与按钮状态
+        updateBatteryButtonState()
+        updateToggleButtonState()
         hasResumedOnce = true
     }
+    private fun attemptAutoStartOnLaunch() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val autoStart = prefs.getBoolean("auto_start_on_boot", true)
+
+        if (autoStart) {
+            // 自动启动：不弹 PIN，直接按权限流程尝试启动
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIF)
+                    return
+                }
+            }
+            val intent = VpnService.prepare(this)
+            if (intent != null) {
+                startActivityForResult(intent, PREPARE_VPN_REQ)
+                return
+            }
+            val serviceIntent = Intent(this, FirewallVpnService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            updateToggleButtonState()
+        } else {
+            // 不自动启动：保持之前状态，先进行一次 PIN 验证
+            updateToggleButtonState()
+            showPinIfNeeded()
+        }
+    }
+    private fun showPinIfNeeded() {
+        if (didShowPin) return
+        didShowPin = true
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val saved = prefs.getString("pin", null)
+        if (saved.isNullOrEmpty()) {
+            showSetPinDialog()
+        } else {
+            showEnterPinDialog(saved)
+        }
+    }
+    private fun updateBatteryButtonState() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
+            if (!ignored) {
+                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization) + "（未忽略，建议设置）"
+                btnIgnoreBattery.setTextColor(android.graphics.Color.RED)
+            } else {
+                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
+                btnIgnoreBattery.setTextColor(android.graphics.Color.parseColor("#222222"))
+            }
+        }
+    }
+
+    // 根据运行状态，区分按钮颜色与禁用状态
+    private fun updateButtonsState() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val running = prefs.getBoolean("vpn_running", false)
+
+        // 启动按钮（未运行：绿色可点击；运行中：灰色禁用）
+        btnStart.isEnabled = !running
+        btnStart.setBackgroundColor(android.graphics.Color.parseColor(if (running) "#9E9E9E" else "#4CAF50"))
+        btnStart.setTextColor(android.graphics.Color.WHITE)
+
+        // 停止按钮（运行中：红色可点击；未运行：灰色禁用）
+        btnStop.isEnabled = running
+        btnStop.setBackgroundColor(android.graphics.Color.parseColor(if (running) "#F44336" else "#9E9E9E"))
+        btnStop.setTextColor(android.graphics.Color.WHITE)
+    }
+}
+
+private fun updateToggleButtonState() {
+    val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+    val running = prefs.getBoolean("vpn_running", false)
+    btnToggleVpn.text = getString(if (running) R.string.stop_vpn else R.string.start_vpn)
+    // 颜色区分：停止=红色，启动=绿色
+    val bg = if (running) "#F44336" else "#4CAF50"
+    btnToggleVpn.setBackgroundColor(android.graphics.Color.parseColor(bg))
+    btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
 }

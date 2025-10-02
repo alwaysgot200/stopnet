@@ -139,16 +139,15 @@ class SettingsActivity : AppCompatActivity() {
         btnTestSmtp.setOnClickListener { sendTestEmail() }
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
+        // PIN 门禁：设置页不再弹 PIN
+        // checkAndGateByPin()
+
+        // 初始化电池优化状态指示
+        updateBatteryButtonState()
     }
 
     private fun checkAndGateByPin() {
-        val saved = prefs.getString("pin", null)
-        if (isPinDialogShowing) return
-        if (saved.isNullOrEmpty()) {
-            showSetPinDialog()
-        } else {
-            showEnterPinDialog(saved)
-        }
+        // 设置页不再进行 PIN 验证；仅在 APP 打开时（MainActivity）验证一次
     }
 
     private fun showEnterPinDialog(saved: String) {
@@ -325,6 +324,12 @@ class SettingsActivity : AppCompatActivity() {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // 返回设置页时刷新电池优化提示状态
+        updateBatteryButtonState()
+    }
 }
 
 data class AppItem(val label: String, val packageName: String, var checked: Boolean)
@@ -365,4 +370,18 @@ class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAda
     override fun getItemCount(): Int = items.size
 
     fun getSelectedPackages(): List<String> = items.filter { it.checked }.map { it.packageName }
+}
+
+private fun updateBatteryButtonState() {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        val pm = getSystemService(android.os.PowerManager::class.java)
+        val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
+        if (!ignored) {
+            btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization) + "（未忽略，建议设置）"
+            btnIgnoreBattery.setTextColor(android.graphics.Color.RED)
+        } else {
+            btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
+            btnIgnoreBattery.setTextColor(android.graphics.Color.parseColor("#222222"))
+        }
+    }
 }
