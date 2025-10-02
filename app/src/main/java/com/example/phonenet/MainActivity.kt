@@ -10,6 +10,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.content.Context
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +34,9 @@ class MainActivity : AppCompatActivity() {
         }
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
+
+        // 前置 PIN 门禁：首次运行必须设置 PIN，之后每次运行都需输入 PIN
+        checkAndGateByPin()
     }
 
     companion object {
@@ -148,18 +152,13 @@ class MainActivity : AppCompatActivity() {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    // 前置 PIN 门禁：首次运行必须设置 PIN，之后每次运行都需输入 PIN
-    checkAndGateByPin()
-
     private fun checkAndGateByPin() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val saved = prefs.getString("pin", null)
         if (saved.isNullOrEmpty()) {
-            // 首次运行：先启动 VPN，再强制设置 PIN
             startVpn()
             showSetPinDialog()
         } else {
-            // 每次运行：先输入 PIN
             showEnterPinDialog(saved)
         }
     }
@@ -210,5 +209,13 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel") { _, _ -> finish() }
             .show()
+    }
+    override fun onResume() {
+        super.onResume()
+        // 首次启动的 onResume 不再重复检查；之后每次回到前台都检查
+        if (hasResumedOnce) {
+            checkAndGateByPin()
+        }
+        hasResumedOnce = true
     }
 }
