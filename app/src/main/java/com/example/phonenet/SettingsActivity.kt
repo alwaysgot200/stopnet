@@ -372,6 +372,7 @@ class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAda
     fun getSelectedPackages(): List<String> = items.filter { it.checked }.map { it.packageName }
 }
 
+// 移回类内部：修复未解析引用
 private fun updateBatteryButtonState() {
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
         val pm = getSystemService(android.os.PowerManager::class.java)

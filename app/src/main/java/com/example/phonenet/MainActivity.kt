@@ -19,23 +19,26 @@ class MainActivity : AppCompatActivity() {
     private var hasResumedOnce = false
     private var pendingShowPinAfterFlow = false
     private var didShowPin = false
+    // 新增：修复未定义错误
+    private var isPinDialogShowing = false
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // 合并按钮：不再使用 btnStart/btnStop
         btnToggleVpn = findViewById(R.id.btnToggleVpn)
         btnSettings = findViewById(R.id.btnSettings)
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
-
+    
         btnToggleVpn.setOnClickListener { toggleVpn() }
         btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
-
-        // 冷启动自动尝试启动管控；权限流程结束后再弹 PIN（按你的策略）
+    
+        // 冷启动自动尝试启动管控；按策略处理 PIN
         attemptAutoStartOnLaunch()
         updateBatteryButtonState()
         updateToggleButtonState()
@@ -147,7 +150,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopVpn() {
-        // 标记为“用户手动停止”，服务 onDestroy 据此不安排自恢复
+        // 可选：写入“用户手动停止”标记（若服务端已实现不自恢复逻辑）
         try {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_user_stop", true).apply()
@@ -338,8 +341,7 @@ private fun updateToggleButtonState() {
     val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
     val running = prefs.getBoolean("vpn_running", false)
     btnToggleVpn.text = getString(if (running) R.string.stop_vpn else R.string.start_vpn)
-    // 颜色区分：停止=红色，启动=绿色
-    val bg = if (running) "#F44336" else "#4CAF50"
+    val bg = if (running) "#F44336" else "#4CAF50" // 运行中=红色；未运行=绿色
     btnToggleVpn.setBackgroundColor(android.graphics.Color.parseColor(bg))
     btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
 }
