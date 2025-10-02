@@ -212,7 +212,8 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() {
         super.onResume()
-        // 首次启动的 onResume 不再重复检查；之后每次回到前台都检查
+        // 标志位：避免首次启动在 onCreate 和首次 onResume 之间重复检查
+        private var hasResumedOnce = false
         if (hasResumedOnce) {
             checkAndGateByPin()
         }
