@@ -318,9 +318,9 @@ class SettingsActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 try {
                     startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为"不要优化"", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为\"不要优化\"", android.widget.Toast.LENGTH_LONG).show()
                 } catch (__: Exception) {
-                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找"电池优化"", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找\"电池优化\"", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
