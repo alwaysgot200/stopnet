@@ -28,20 +28,27 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_USER_UNLOCKED -> {
                 startIfEnabledUnlocked(context)
             }
+            "com.example.phonenet.ACTION_RESTART_VPN" -> {
+                // 被杀后的延时自恢复
+                startIfEnabledUnlocked(context)
+            }
         }
     }
 
     private fun startIfEnabledLocked(context: Context) {
         val dpsCtx = context.createDeviceProtectedStorageContext()
         val prefs = dpsCtx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        // 开机自启开关
+        // 开机自启开关（默认：已开启）
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
         // 运行状态
         val running = prefs.getBoolean("vpn_running", false)
-        // 仅当白名单存在且非空时，才在未解锁阶段启动
-        val whitelist = prefs.getStringSet("whitelist_packages", null)
-        if (!enabled || running || whitelist == null || whitelist.isEmpty()) return
-
+        // 原逻辑：仅当白名单存在且非空时，才在未解锁阶段启动
+        // val whitelist = prefs.getStringSet("whitelist_packages", null)
+        // if (!enabled || running || whitelist == null || whitelist.isEmpty()) return
+    
+        // 新逻辑：未解锁阶段只依据“开机自启”开关与当前运行状态决定是否启动
+        if (!enabled || running) return
+    
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
             val serviceIntent = Intent(context, FirewallVpnService::class.java)
@@ -55,6 +62,7 @@ class BootReceiver : BroadcastReceiver() {
 
     private fun startIfEnabledUnlocked(context: Context) {
         val prefs = context.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        // 开机自启开关（默认：已开启）
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
         val running = prefs.getBoolean("vpn_running", false)
         if (!enabled || running) return

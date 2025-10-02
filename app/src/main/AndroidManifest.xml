@@ -63,6 +63,8 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.USER_UNLOCKED"/>
+                <!-- 被杀后自恢复的自定义广播 -->
+                <action android:name="com.example.phonenet.ACTION_RESTART_VPN"/>
             </intent-filter>
         </receiver>
     </application>

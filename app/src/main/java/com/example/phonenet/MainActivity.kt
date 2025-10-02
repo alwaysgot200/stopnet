@@ -136,10 +136,79 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
                 android.widget.Toast.makeText(this, "请允许忽略电池优化以提升服务稳定性", android.widget.Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {
-                android.widget.Toast.makeText(this, "无法请求忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
+                try {
+                    // 兜底：直接打开系统“电池优化”列表，让家长手动将 PhoneNet 设为“不优化”
+                    startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为“不要优化”", android.widget.Toast.LENGTH_LONG).show()
+                } catch (__: Exception) {
+                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找“电池优化”", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         } else {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+    // 前置 PIN 门禁：首次运行必须设置 PIN，之后每次运行都需输入 PIN
+    checkAndGateByPin()
+
+    private fun checkAndGateByPin() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val saved = prefs.getString("pin", null)
+        if (saved.isNullOrEmpty()) {
+            // 首次运行：先启动 VPN，再强制设置 PIN
+            startVpn()
+            showSetPinDialog()
+        } else {
+            // 每次运行：先输入 PIN
+            showEnterPinDialog(saved)
+        }
+    }
+
+    private fun showEnterPinDialog(saved: String) {
+        val input = android.widget.EditText(this)
+        input.hint = getString(R.string.enter_pin)
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.enter_pin))
+            .setView(input)
+            .setCancelable(false)
+            .setPositiveButton("OK") { _, _ ->
+                val entered = input.text?.toString() ?: ""
+                if (entered != saved) {
+                    android.widget.Toast.makeText(this, getString(R.string.wrong_pin), android.widget.Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+            .setNegativeButton("Cancel") { _, _ -> finish() }
+            .show()
+    }
+
+    private fun showSetPinDialog() {
+        val input1 = android.widget.EditText(this)
+        input1.hint = getString(R.string.set_pin)
+        val input2 = android.widget.EditText(this)
+        input2.hint = getString(R.string.confirm_pin)
+        val container = androidx.appcompat.widget.LinearLayoutCompat(this).apply {
+            orientation = androidx.appcompat.widget.LinearLayoutCompat.VERTICAL
+            setPadding(24, 24, 24, 0)
+            addView(input1)
+            addView(input2)
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.set_pin))
+            .setView(container)
+            .setCancelable(false)
+            .setPositiveButton("OK") { _, _ ->
+                val p1 = input1.text?.toString()?.trim() ?: ""
+                val p2 = input2.text?.toString()?.trim() ?: ""
+                if (p1.isNotEmpty() && p1 == p2) {
+                    val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putString("pin", p1).apply()
+                } else {
+                    android.widget.Toast.makeText(this, getString(R.string.wrong_pin), android.widget.Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+            .setNegativeButton("Cancel") { _, _ -> finish() }
+            .show()
     }
 }

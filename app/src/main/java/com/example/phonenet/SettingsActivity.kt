@@ -71,8 +71,20 @@ class SettingsActivity : AppCompatActivity() {
 
         // 如存在开机自启控件
         swAutoStart = findViewById(R.id.swAutoStart)
-        // 预填开机自启状态
-        swAutoStart.isChecked = prefs.getBoolean("auto_start_on_boot", false)
+        // 预填开机自启状态（默认：已开启）
+        swAutoStart.isChecked = prefs.getBoolean("auto_start_on_boot", true)
+        // 当开关变化时，立即持久化到普通存储与 DPS（兼容未解锁阶段读取）
+        swAutoStart.setOnCheckedChangeListener { _, checked ->
+            try {
+                prefs.edit().putBoolean("auto_start_on_boot", checked).apply()
+                dpsPrefs.edit().putBoolean("auto_start_on_boot", checked).apply()
+            } catch (_: Exception) { }
+            if (checked) {
+                android.widget.Toast.makeText(this, "已开启：开机自动启动", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.widget.Toast.makeText(this, "已关闭：开机自动启动", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
 
         // PIN 门禁
         checkAndGateByPin()
@@ -113,9 +125,11 @@ class SettingsActivity : AppCompatActivity() {
                 dpm.setAlwaysOnVpnPackage(admin, packageName, true)
                 // 禁止修改 VPN 设置
                 dpm.addUserRestriction(admin, android.os.UserManager.DISALLOW_CONFIG_VPN)
-                // 禁止卸载本应用
+                // 禁止卸载本应用（DO 才有效）
                 dpm.setUninstallBlocked(admin, packageName, true)
-                // 如设备支持，也可进一步限制状态栏下拉（仅 DO 可用，部分厂商可能不同）
+                // 允许本应用进入锁定任务（Kiosk）模式，避免随意退出
+                dpm.setLockTaskPackages(admin, arrayOf(packageName))
+                // 如设备支持，可进一步限制状态栏（部分厂商支持）
                 // try { dpm.setStatusBarDisabled(admin, true) } catch (_: Exception) {}
             }
         } catch (_: Exception) {
@@ -293,7 +307,12 @@ class SettingsActivity : AppCompatActivity() {
                 startActivity(intent)
                 android.widget.Toast.makeText(this, getString(R.string.battery_opt_desc), android.widget.Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {
-                android.widget.Toast.makeText(this, "无法请求忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
+                try {
+                    startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为“不要优化”", android.widget.Toast.LENGTH_LONG).show()
+                } catch (__: Exception) {
+                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找“电池优化”", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         } else {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
