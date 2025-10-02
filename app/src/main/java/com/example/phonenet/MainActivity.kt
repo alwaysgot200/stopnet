@@ -16,6 +16,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     private lateinit var btnSettings: Button
+    private lateinit var btnIgnoreBattery: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +31,8 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
+        btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
     }
 
     companion object {
@@ -46,7 +49,22 @@ class MainActivity : AppCompatActivity() {
                 return
             }
         }
-
+    
+        // 引导忽略电池优化，减少后台被系统回收的概率
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            val pkg = packageName
+            if (pm?.isIgnoringBatteryOptimizations(pkg) == false) {
+                try {
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = android.net.Uri.parse("package:$pkg")
+                    }
+                    startActivity(intent)
+                    android.widget.Toast.makeText(this, "请允许忽略电池优化以提升服务稳定性", android.widget.Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) { }
+            }
+        }
+    
         val intent = VpnService.prepare(this)
         if (intent != null) {
             AlertDialog.Builder(this)
@@ -101,5 +119,27 @@ class MainActivity : AppCompatActivity() {
     private fun stopVpn() {
         val serviceIntent = Intent(this, FirewallVpnService::class.java)
         stopService(serviceIntent)
+    }
+
+    private fun requestIgnoreBatteryOptimizations() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            val pkg = packageName
+            if (pm?.isIgnoringBatteryOptimizations(pkg) == true) {
+                android.widget.Toast.makeText(this, "已忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = android.net.Uri.parse("package:$pkg")
+                }
+                startActivity(intent)
+                android.widget.Toast.makeText(this, "请允许忽略电池优化以提升服务稳定性", android.widget.Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                android.widget.Toast.makeText(this, "无法请求忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }

@@ -36,9 +36,11 @@ class BootReceiver : BroadcastReceiver() {
         val prefs = dpsCtx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         // 开机自启开关
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
+        // 运行状态
+        val running = prefs.getBoolean("vpn_running", false)
         // 仅当白名单存在且非空时，才在未解锁阶段启动
         val whitelist = prefs.getStringSet("whitelist_packages", null)
-        if (!enabled || whitelist == null || whitelist.isEmpty()) return
+        if (!enabled || running || whitelist == null || whitelist.isEmpty()) return
 
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
@@ -54,7 +56,8 @@ class BootReceiver : BroadcastReceiver() {
     private fun startIfEnabledUnlocked(context: Context) {
         val prefs = context.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
-        if (!enabled) return
+        val running = prefs.getBoolean("vpn_running", false)
+        if (!enabled || running) return
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
             val serviceIntent = Intent(context, FirewallVpnService::class.java)

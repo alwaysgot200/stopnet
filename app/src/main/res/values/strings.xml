@@ -25,4 +25,6 @@
     <string name="smtp_test">发送测试邮件</string>
     <string name="smtp_test_subject">【PhoneNet】SMTP 配置测试</string>
     <string name="smtp_test_body">这是一封测试邮件，表明 SMTP 配置工作正常。</string>
+    <string name="ignore_battery_optimization">忽略电池优化（提升稳定性）</string>
+    <string name="battery_opt_desc">请允许忽略电池优化以减少服务被系统回收</string>
 </resources>

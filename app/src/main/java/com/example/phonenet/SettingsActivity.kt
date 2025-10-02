@@ -28,6 +28,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
     private lateinit var btnOpenVpnSettings: Button
+    private lateinit var btnIgnoreBattery: Button
 
     // SMTP 配置
     private lateinit var etSmtpHost: EditText
@@ -122,6 +123,8 @@ class SettingsActivity : AppCompatActivity() {
         }
         btnSaveEmail.setOnClickListener { saveSettings() }
         btnTestSmtp.setOnClickListener { sendTestEmail() }
+        btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
+        btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
     }
 
     private fun checkAndGateByPin() {
@@ -272,6 +275,28 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(android.provider.Settings.ACTION_VPN_SETTINGS))
         } catch (_: Exception) {
             android.widget.Toast.makeText(this, "无法打开系统 VPN 设置", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun requestIgnoreBatteryOptimizations() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            val pkg = packageName
+            if (pm?.isIgnoringBatteryOptimizations(pkg) == true) {
+                android.widget.Toast.makeText(this, "已忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = android.net.Uri.parse("package:$pkg")
+                }
+                startActivity(intent)
+                android.widget.Toast.makeText(this, getString(R.string.battery_opt_desc), android.widget.Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                android.widget.Toast.makeText(this, "无法请求忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }

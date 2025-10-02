@@ -21,6 +21,16 @@ class FirewallVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundNotification()
         setupAndStartVpn()
+
+        // 标记服务运行中（普通存储与 DPS 都写入，兼容未解锁阶段）
+        try {
+            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            p1.edit().putBoolean("vpn_running", true).apply()
+            val dps = createDeviceProtectedStorageContext()
+                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            dps.edit().putBoolean("vpn_running", true).apply()
+        } catch (_: Exception) { }
+
         return START_STICKY
     }
 
@@ -31,6 +41,26 @@ class FirewallVpnService : VpnService() {
         vpnInterface?.close()
         vpnInterface = null
         stopForeground(true)
+
+        // 清除运行标记
+        try {
+            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            p1.edit().putBoolean("vpn_running", false).apply()
+            val dps = createDeviceProtectedStorageContext()
+                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            dps.edit().putBoolean("vpn_running", false).apply()
+        } catch (_: Exception) { }
+    }
+
+    // 当用户在最近任务里清理你的任务时，某些系统会尝试停止服务；这里立即自恢复
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val serviceIntent = Intent(this, FirewallVpnService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
     }
 
     private fun setupAndStartVpn() {
