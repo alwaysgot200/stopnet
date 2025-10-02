@@ -45,7 +45,6 @@ class MailJobIntentService : JobIntentService() {
         }
 
         val host = prefString("smtp_host")
-        // 默认端口：SSL=465，STARTTLS=587（如果未配置时根据模式选择）
         val ssl = prefBool("smtp_ssl", false)
         val port = prefInt("smtp_port", if (ssl) 465 else 587)
         val tls = prefBool("smtp_tls", !ssl)

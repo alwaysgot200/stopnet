@@ -43,7 +43,6 @@ class FirewallVpnService : VpnService() {
         vpnInterface = null
         stopForeground(true)
 
-        // 清除运行标记
         var userStopped = false
         try {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
@@ -55,7 +54,6 @@ class FirewallVpnService : VpnService() {
             userStopped = userStopped || dps.getBoolean("vpn_user_stop", false)
         } catch (_: Exception) { }
 
-        // 若不是手动停止，安排自恢复；否则不重启
         if (!userStopped) {
             try {
                 val am = getSystemService(android.app.AlarmManager::class.java)
@@ -72,7 +70,6 @@ class FirewallVpnService : VpnService() {
                     val pi = android.app.PendingIntent.getBroadcast(this, 1001, intent, flags)
                     am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 3000, pi)
                 } else {
-                    // 无精确闹钟授权：使用 JobScheduler 兜底
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                         scheduleJobRestart()
                     }
@@ -81,16 +78,14 @@ class FirewallVpnService : VpnService() {
         }
     }
 
-    // 当用户在最近任务里清理你的任务时，某些系统会尝试停止服务；这里立即自恢复
+    // 当用户在最近任务里清理你的任务时立即自恢复（需与主进程同进程）
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        
-        // 检查是否应该保持运行
+
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
-        
+
         if (!userStopped) {
-            // 1. 立即重启服务（多次尝试）
             for (i in 0..2) {
                 try {
                     val serviceIntent = Intent(this, FirewallVpnService::class.java)
@@ -99,21 +94,15 @@ class FirewallVpnService : VpnService() {
                     } else {
                         startService(serviceIntent)
                     }
-                } catch (e: Exception) {
-                    // 忽略异常，继续尝试
-                }
+                } catch (_: Exception) { }
             }
-            
-            // 2. 设置多重保险：多个时间点的延时重启
             scheduleMultipleRestarts()
-            
-            // 3. 通过JobScheduler设置额外保活（Android 5.0+）
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                 scheduleJobRestart()
             }
         }
     }
-    
+
     private fun scheduleMultipleRestarts() {
         try {
             val am = getSystemService(android.app.AlarmManager::class.java)
@@ -122,46 +111,42 @@ class FirewallVpnService : VpnService() {
             }
             val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
                 (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
-            
+
             val canExact = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 am?.canScheduleExactAlarms() == true
             } else true
 
             if (canExact) {
-                // 精确闹钟触发前台服务，符合Android 12+白名单场景
                 val restartTimes = longArrayOf(3000, 10000, 30000, 60000, 120000)
                 restartTimes.forEachIndexed { index, delay ->
                     val pi = android.app.PendingIntent.getBroadcast(this, 1010 + index, intent, flags)
                     am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delay, pi)
                 }
             } else {
-                // 无精确闹钟授权：降级使用 JobScheduler 兜底
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                     scheduleJobRestart()
                 }
             }
         } catch (_: Exception) { }
     }
-    
+
     @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.LOLLIPOP)
     private fun scheduleJobRestart() {
         try {
             val jobScheduler = getSystemService(android.content.Context.JOB_SCHEDULER_SERVICE) as android.app.job.JobScheduler
             val jobInfo = android.app.job.JobInfo.Builder(2001, android.content.ComponentName(this, KeepAliveJobService::class.java))
-                .setMinimumLatency(5000) // 最少5秒后执行
-                .setOverrideDeadline(15000) // 最多15秒内必须执行
+                .setMinimumLatency(5000)
+                .setOverrideDeadline(15000)
                 .setRequiredNetworkType(android.app.job.JobInfo.NETWORK_TYPE_NONE)
-                .setPersisted(true) // 重启后保持
+                .setPersisted(true)
                 .build()
             jobScheduler.schedule(jobInfo)
         } catch (_: Exception) { }
     }
-    
+
     private fun setupAndStartVpn() {
-        // 防止重复启动导致资源重复占用
         if (vpnInterface != null && workerThread?.isAlive == true) return
 
-        // 根据是否解锁选择读取的存储（DPS 在未解锁）
         val prefs = run {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                 val um = getSystemService(android.os.UserManager::class.java)
@@ -178,21 +163,16 @@ class FirewallVpnService : VpnService() {
 
         val whitelist = prefs.getStringSet("whitelist_packages", emptySet()) ?: emptySet()
 
-        val builder = Builder()
-            .setSession("PhoneNet Firewall")
-            // .setBlocking(true) // 兼容性考虑：API 29+ 才有，minSdk 24 下移除
+        val builder = Builder().setSession("PhoneNet Firewall")
 
-        // 让全部 IPv4 流量进入 VPN
         builder.addAddress("10.0.0.2", 32)
         builder.addRoute("0.0.0.0", 0)
 
-        // IPv6（可选，设备不支持时忽略）
         try {
             builder.addAddress("fd00:1:1::2", 128)
             builder.addRoute("::", 0)
         } catch (_: Exception) { }
 
-        // 白名单应用不经 VPN（可正常上网）
         whitelist.forEach { pkg ->
             try {
                 builder.addDisallowedApplication(pkg)
@@ -201,7 +181,6 @@ class FirewallVpnService : VpnService() {
 
         vpnInterface = builder.establish()
 
-        // 黑洞线程：读入并丢弃所有包
         vpnInterface?.fileDescriptor?.let { fd ->
             val input = FileInputStream(fd)
             val buffer = ByteBuffer.allocate(32767)
@@ -210,7 +189,7 @@ class FirewallVpnService : VpnService() {
                     while (!Thread.currentThread().isInterrupted) {
                         val length = input.read(buffer.array())
                         if (length > 0) {
-                            buffer.clear() // 丢弃数据，不回写
+                            buffer.clear()
                         } else {
                             Thread.sleep(10)
                         }
@@ -227,40 +206,38 @@ class FirewallVpnService : VpnService() {
         val channelId = "phonenet_vpn_channel"
         val nm = getSystemService(NotificationManager::class.java)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "PhoneNet VPN", NotificationManager.IMPORTANCE_HIGH) // 提高重要性
+            val channel = NotificationChannel(channelId, "PhoneNet VPN", NotificationManager.IMPORTANCE_HIGH)
             channel.description = "PhoneNet 网络管控服务 - 请勿关闭"
             channel.setShowBadge(false)
             channel.enableLights(false)
             channel.enableVibration(false)
-            channel.setSound(null, null) // 静音
+            channel.setSound(null, null)
             nm?.createNotificationChannel(channel)
         }
-    
+
         val intent = Intent(this, MainActivity::class.java)
         val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
             (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
         val pi = android.app.PendingIntent.getActivity(this, 0, intent, flags)
-    
+
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("PhoneNet 网络管控运行中")
             .setContentText("正在保护设备网络安全，请勿关闭此通知")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentIntent(pi)
-            .setOngoing(true)  // 持续通知，不能被滑动删除
-            .setAutoCancel(false) // 点击后不自动取消
-            .setPriority(NotificationCompat.PRIORITY_MAX) // 最高优先级
-            .setCategory(NotificationCompat.CATEGORY_SERVICE) // 服务类别
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // 锁屏可见
-            .setShowWhen(false) // 不显示时间
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setShowWhen(false)
             .build()
-    
+
         startForeground(1001, notification)
     }
 
-    // 当用户/系统撤销了你的 VPN 连接或权限时回调
     override fun onRevoke() {
         super.onRevoke()
-        // 如果权限仍被授予（prepare 返回 null），尝试自动重连
         val prepareIntent = VpnService.prepare(this)
         if (prepareIntent == null) {
             val serviceIntent = Intent(this, FirewallVpnService::class.java)
@@ -270,7 +247,6 @@ class FirewallVpnService : VpnService() {
                 startService(serviceIntent)
             }
         } else {
-            // 权限被撤销或被要求重新授权：发通知引导家长去系统 VPN 设置打开 Always-on + “无 VPN 不允许连接”
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channelId = "phonenet_vpn_alert"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

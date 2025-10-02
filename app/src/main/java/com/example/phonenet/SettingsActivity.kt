@@ -70,7 +70,7 @@ class SettingsActivity : AppCompatActivity() {
         btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
         btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
 
-        // 移除设置页的“忽略电池优化”按钮及监听
+        // 移除设置页“忽略电池优化”按钮的绑定与点击逻辑
         // btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
         // btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
 
@@ -236,6 +236,7 @@ class SettingsActivity : AppCompatActivity() {
             val pkg = ai.packageName
             appItems.add(AppItem(label, pkg, whitelist.contains(pkg)))
         }
+        adapter.notifyDataSetChanged()
     }
 
     private fun saveSettings() {
@@ -334,8 +335,8 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 返回设置页不再刷新电池优化提示（主界面负责）
-        // 移除：updateBatteryButtonState()
+        // 返回设置页时不再刷新电池优化提示
+        // updateBatteryButtonState()
     }
 
     private fun updateBatteryButtonState() {
@@ -362,10 +363,7 @@ class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAda
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        // 动态构建行布局：CheckBox + TextView
         val ctx = parent.context
-        val root = LayoutInflater.from(ctx).inflate(android.R.layout.simple_list_item_multiple_choice, parent, false)
-        // simple_list_item_multiple_choice 使用 CheckedTextView，不含 CheckBox；为简化，我们自定义一个容器
         val container = androidx.appcompat.widget.LinearLayoutCompat(ctx).apply {
             orientation = androidx.appcompat.widget.LinearLayoutCompat.HORIZONTAL
             setPadding(16, 16, 16, 16)
@@ -380,7 +378,6 @@ class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAda
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
         holder.tv.text = item.label
-        // 先清除监听，避免复用导致的回调触发
         holder.cb.setOnCheckedChangeListener(null)
         holder.cb.isChecked = item.checked
         holder.cb.setOnCheckedChangeListener { _, checked ->
