@@ -48,6 +48,7 @@ class SettingsActivity : AppCompatActivity() {
     private val appItems = mutableListOf<AppItem>()
     private lateinit var adapter: AppAdapter
     private var isPinDialogShowing = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -135,6 +136,8 @@ class SettingsActivity : AppCompatActivity() {
         } catch (_: Exception) {
             // 安全忽略（非 DO 或设备不支持时不会崩溃）
         }
+
+        btnEnableAdmin.setOnClickListener { requestDeviceAdmin() }
         btnSaveEmail.setOnClickListener { saveSettings() }
         btnTestSmtp.setOnClickListener { sendTestEmail() }
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
@@ -315,9 +318,9 @@ class SettingsActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 try {
                     startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为“不要优化”", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为"不要优化"", android.widget.Toast.LENGTH_LONG).show()
                 } catch (__: Exception) {
-                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找“电池优化”", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找"电池优化"", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
@@ -329,6 +332,20 @@ class SettingsActivity : AppCompatActivity() {
         super.onResume()
         // 返回设置页时刷新电池优化提示状态
         updateBatteryButtonState()
+    }
+
+    private fun updateBatteryButtonState() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
+            if (!ignored) {
+                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization) + "（未忽略，建议设置）"
+                btnIgnoreBattery.setTextColor(android.graphics.Color.RED)
+            } else {
+                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
+                btnIgnoreBattery.setTextColor(android.graphics.Color.parseColor("#222222"))
+            }
+        }
     }
 }
 
@@ -370,18 +387,4 @@ class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAda
     override fun getItemCount(): Int = items.size
 
     fun getSelectedPackages(): List<String> = items.filter { it.checked }.map { it.packageName }
-}
-
-private fun updateBatteryButtonState() {
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-        val pm = getSystemService(android.os.PowerManager::class.java)
-        val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
-        if (!ignored) {
-            btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization) + "（未忽略，建议设置）"
-            btnIgnoreBattery.setTextColor(android.graphics.Color.RED)
-        } else {
-            btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
-            btnIgnoreBattery.setTextColor(android.graphics.Color.parseColor("#222222"))
-        }
-    }
 }

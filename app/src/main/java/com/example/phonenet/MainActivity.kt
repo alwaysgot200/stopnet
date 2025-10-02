@@ -20,15 +20,14 @@ class MainActivity : AppCompatActivity() {
     private var hasResumedOnce = false
     private var pendingShowPinAfterFlow = false
     private var didShowPin = false
-    // 修复：补充对话框显示标志
+    // 修复未定义：PIN 对话框状态标记
     private var isPinDialogShowing = false
-    private lateinit var btnStart: Button
-    private lateinit var btnStop: Button
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 仅使用合并后的按钮
+        // 使用合并后的按钮（删除对 btnStart/btnStop 的引用）
         btnToggleVpn = findViewById(R.id.btnToggleVpn)
         btnSettings = findViewById(R.id.btnSettings)
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
@@ -37,7 +36,6 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
 
-        // 冷启动流程 + 刷新按钮状态
         attemptAutoStartOnLaunch()
         updateBatteryButtonState()
         updateToggleButtonState()
@@ -111,7 +109,6 @@ class MainActivity : AppCompatActivity() {
                 }
                 updateToggleButtonState()
             }
-            // 仅在未开启“自动启动”时，才在权限流程后弹 PIN
             val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             val autoStart = prefs.getBoolean("auto_start_on_boot", true)
             if (!autoStart) {
@@ -125,7 +122,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_NOTIF) {
             val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             if (granted) {
-                // 按“自动启动”策略继续
+                // 按"自动启动"策略继续
                 attemptAutoStartOnLaunch()
             } else {
                 // 未开启自动启动时，继续 PIN 门禁一次
@@ -138,6 +135,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // MainActivity 内新增：切换与颜色刷新
     private fun toggleVpn() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val running = prefs.getBoolean("vpn_running", false)
@@ -147,9 +145,18 @@ class MainActivity : AppCompatActivity() {
             startVpn()
         }
     }
+    
+    private fun updateToggleButtonState() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val running = prefs.getBoolean("vpn_running", false)
+        btnToggleVpn.text = getString(if (running) R.string.stop_vpn else R.string.start_vpn)
+        val bg = if (running) "#F44336" else "#4CAF50" // 运行中=红；未运行=绿
+        btnToggleVpn.setBackgroundColor(android.graphics.Color.parseColor(bg))
+        btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
+    }
 
     private fun stopVpn() {
-        // 可选：写入“用户手动停止”标记（若服务端已实现不自恢复逻辑）
+        // 可选：写入"手动停止"标记，服务不自恢复
         try {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_user_stop", true).apply()
@@ -162,8 +169,6 @@ class MainActivity : AppCompatActivity() {
         stopService(serviceIntent)
 
         updateToggleButtonState()
-        // 停止后刷新按钮显示
-        updateButtonsState()
     }
 
     private fun requestIgnoreBatteryOptimizations() {
@@ -182,11 +187,11 @@ class MainActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this, "请允许忽略电池优化以提升服务稳定性", android.widget.Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {
                 try {
-                    // 兜底：直接打开系统“电池优化”列表，让家长手动将 PhoneNet 设为“不优化”
+                    // 兜底：直接打开系统"电池优化"列表，让家长手动将 PhoneNet 设为"不优化"
                     startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为“不要优化”", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为"不要优化"", android.widget.Toast.LENGTH_LONG).show()
                 } catch (__: Exception) {
-                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找“电池优化”", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找"电池优化"", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
@@ -258,7 +263,6 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() {
         super.onResume()
-        // 不二次弹 PIN；刷新电池优化与按钮状态
         updateBatteryButtonState()
         updateToggleButtonState()
         hasResumedOnce = true
@@ -318,29 +322,4 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    // 根据运行状态，区分按钮颜色与禁用状态
-    private fun updateButtonsState() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val running = prefs.getBoolean("vpn_running", false)
-
-        // 启动按钮（未运行：绿色可点击；运行中：灰色禁用）
-        btnStart.isEnabled = !running
-        btnStart.setBackgroundColor(android.graphics.Color.parseColor(if (running) "#9E9E9E" else "#4CAF50"))
-        btnStart.setTextColor(android.graphics.Color.WHITE)
-
-        // 停止按钮（运行中：红色可点击；未运行：灰色禁用）
-        btnStop.isEnabled = running
-        btnStop.setBackgroundColor(android.graphics.Color.parseColor(if (running) "#F44336" else "#9E9E9E"))
-        btnStop.setTextColor(android.graphics.Color.WHITE)
-    }
-}
-
-private fun updateToggleButtonState() {
-    val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-    val running = prefs.getBoolean("vpn_running", false)
-    btnToggleVpn.text = getString(if (running) R.string.stop_vpn else R.string.start_vpn)
-    val bg = if (running) "#F44336" else "#4CAF50" // 运行中=红色；未运行=绿色
-    btnToggleVpn.setBackgroundColor(android.graphics.Color.parseColor(bg))
-    btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
 }
