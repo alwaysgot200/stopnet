@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
 
-        // 前置 PIN 门禁：首次运行必须设置 PIN，之后每次运行都需输入 PIN
+        // 首次启动进行 PIN 检查
         checkAndGateByPin()
     }
 
