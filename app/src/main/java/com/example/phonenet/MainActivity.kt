@@ -205,15 +205,16 @@ class MainActivity : AppCompatActivity() {
     private fun toggleVpn() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val running = prefs.getBoolean("vpn_running", false)
+        val savedPin = prefs.getString("pin", "") ?: ""
         
         if (running) {
             // 停止VPN需要PIN验证
-            showEnterPinDialog(prefs.getString("pin", "")) { 
+            showEnterPinDialog(savedPin) { 
                 stopVpn()
             }
         } else {
             // 启动VPN需要PIN验证
-            showEnterPinDialog(prefs.getString("pin", "")) { 
+            showEnterPinDialog(savedPin) { 
                 startVpn()
             }
         }
@@ -280,13 +281,13 @@ class MainActivity : AppCompatActivity() {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    private fun checkAndGateByPin() {
+    private fun checkAndGateByPin(onSuccess: () -> Unit) {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val saved = prefs.getString("pin", null)
         if (saved.isNullOrEmpty()) {
-            showSetPinDialog()
+            showSetPinDialog(onSuccess)
         } else {
-            showEnterPinDialog(saved)
+            showEnterPinDialog(saved, onSuccess)
         }
     }
 
@@ -477,9 +478,13 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val saved = prefs.getString("pin", null)
         if (saved.isNullOrEmpty()) {
-            showSetPinDialog()
+            showSetPinDialog {
+                // PIN设置完成后的回调，可以为空或添加逻辑
+            }
         } else {
-            showEnterPinDialog(saved)
+            showEnterPinDialog(saved) {
+                // PIN验证完成后的回调，可以为空或添加逻辑
+            }
         }
     }
     private fun updateBatteryButtonState() {
