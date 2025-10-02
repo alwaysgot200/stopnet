@@ -19,6 +19,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSettings: Button
     private lateinit var btnIgnoreBattery: Button
     private var hasResumedOnce = false
+    private var isPinDialogShowing = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -155,8 +156,8 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndGateByPin() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val saved = prefs.getString("pin", null)
+        if (isPinDialogShowing) return
         if (saved.isNullOrEmpty()) {
-            startVpn()
             showSetPinDialog()
         } else {
             showEnterPinDialog(saved)
@@ -164,9 +165,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showEnterPinDialog(saved: String) {
+        isPinDialogShowing = true
         val input = android.widget.EditText(this)
         input.hint = getString(R.string.enter_pin)
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.enter_pin))
             .setView(input)
             .setCancelable(false)
@@ -178,10 +180,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Cancel") { _, _ -> finish() }
-            .show()
+            .create()
+        dialog.setOnDismissListener { isPinDialogShowing = false }
+        dialog.show()
     }
 
     private fun showSetPinDialog() {
+        isPinDialogShowing = true
         val input1 = android.widget.EditText(this)
         input1.hint = getString(R.string.set_pin)
         val input2 = android.widget.EditText(this)
@@ -192,7 +197,7 @@ class MainActivity : AppCompatActivity() {
             addView(input1)
             addView(input2)
         }
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.set_pin))
             .setView(container)
             .setCancelable(false)
@@ -208,7 +213,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Cancel") { _, _ -> finish() }
-            .show()
+            .create()
+        dialog.setOnDismissListener { isPinDialogShowing = false }
+        dialog.show()
     }
     override fun onResume() {
         super.onResume()

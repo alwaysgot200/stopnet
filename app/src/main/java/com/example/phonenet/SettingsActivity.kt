@@ -47,7 +47,7 @@ class SettingsActivity : AppCompatActivity() {
     private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
     private val appItems = mutableListOf<AppItem>()
     private lateinit var adapter: AppAdapter
-
+    private var isPinDialogShowing = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -143,6 +143,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun checkAndGateByPin() {
         val saved = prefs.getString("pin", null)
+        if (isPinDialogShowing) return
         if (saved.isNullOrEmpty()) {
             showSetPinDialog()
         } else {
@@ -151,9 +152,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showEnterPinDialog(saved: String) {
+        isPinDialogShowing = true
         val input = EditText(this)
         input.hint = getString(R.string.enter_pin)
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.enter_pin))
             .setView(input)
             .setCancelable(false)
@@ -165,10 +167,13 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Cancel") { _, _ -> finish() }
-            .show()
+            .create()
+        dialog.setOnDismissListener { isPinDialogShowing = false }
+        dialog.show()
     }
 
     private fun showSetPinDialog() {
+        isPinDialogShowing = true
         val input1 = EditText(this)
         input1.hint = getString(R.string.set_pin)
         val input2 = EditText(this)
@@ -179,7 +184,7 @@ class SettingsActivity : AppCompatActivity() {
             addView(input1)
             addView(input2)
         }
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.set_pin))
             .setView(container)
             .setCancelable(false)
@@ -194,7 +199,9 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Cancel") { _, _ -> finish() }
-            .show()
+            .create()
+        dialog.setOnDismissListener { isPinDialogShowing = false }
+        dialog.show()
     }
 
     private fun requestDeviceAdmin() {
