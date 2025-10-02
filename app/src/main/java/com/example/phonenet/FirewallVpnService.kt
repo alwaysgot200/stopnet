@@ -22,13 +22,10 @@ class FirewallVpnService : VpnService() {
         startForegroundNotification()
         setupAndStartVpn()
 
-        // 标记服务运行中（普通存储与 DPS 都写入，兼容未解锁阶段）
         try {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_running", true).apply()
-            // 启动时清除“用户手动停止”标记
             p1.edit().putBoolean("vpn_user_stop", false).apply()
-
             val dps = createDeviceProtectedStorageContext()
                 .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", true).apply()
@@ -52,7 +49,6 @@ class FirewallVpnService : VpnService() {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_running", false).apply()
             userStopped = userStopped || p1.getBoolean("vpn_user_stop", false)
-
             val dps = createDeviceProtectedStorageContext()
                 .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", false).apply()

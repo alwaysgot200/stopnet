@@ -13,13 +13,14 @@ import androidx.core.content.ContextCompat
 import android.content.Context
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var btnToggleVpn: Button
     private lateinit var btnSettings: Button
     private lateinit var btnIgnoreBattery: Button
     private var hasResumedOnce = false
     private var pendingShowPinAfterFlow = false
     private var didShowPin = false
-    // 新增：修复未定义错误
+    // 修复：补充对话框显示标志
     private var isPinDialogShowing = false
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
@@ -27,18 +28,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 合并按钮：不再使用 btnStart/btnStop
+        // 仅使用合并后的按钮
         btnToggleVpn = findViewById(R.id.btnToggleVpn)
         btnSettings = findViewById(R.id.btnSettings)
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
-    
+
         btnToggleVpn.setOnClickListener { toggleVpn() }
-        btnSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
+        btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
-    
-        // 冷启动自动尝试启动管控；按策略处理 PIN
+
+        // 冷启动流程 + 刷新按钮状态
         attemptAutoStartOnLaunch()
         updateBatteryButtonState()
         updateToggleButtonState()
