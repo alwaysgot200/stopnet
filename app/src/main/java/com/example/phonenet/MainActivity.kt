@@ -62,6 +62,17 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
+            // 如果本应用是设备所有者（DO），进入锁定任务（Kiosk）以防止随意退出与设置篡改
+            try {
+                val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                if (dpm.isDeviceOwnerApp(packageName)) {
+                    // 确保已先在 DO 端白名单本包作为可锁定任务
+                    // 你已在 SettingsActivity 中通过 dpm.setLockTaskPackages(admin, arrayOf(packageName)) 进行设定
+                    startLockTask()
+                }
+            } catch (_: Exception) {
+                // 安全忽略
+            }
         }
     }
 

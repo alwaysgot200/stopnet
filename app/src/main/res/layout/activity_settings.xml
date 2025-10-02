@@ -26,6 +26,13 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
 
+    <Button
+        android:id="@+id/btnOpenVpnSettings"
+        android:text="打开系统 VPN 设置（建议开启始终开启与锁定）"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"/>
+
     <!-- SMTP 配置 -->
     <TextView
         android:text="@string/smtp_settings"

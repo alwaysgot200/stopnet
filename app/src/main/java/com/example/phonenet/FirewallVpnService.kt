@@ -118,4 +118,39 @@ class FirewallVpnService : VpnService() {
             .build()
         startForeground(1, notif)
     }
+
+    // 当用户/系统撤销了你的 VPN 连接或权限时回调
+    override fun onRevoke() {
+        super.onRevoke()
+        // 如果权限仍被授予（prepare 返回 null），尝试自动重连
+        val prepareIntent = VpnService.prepare(this)
+        if (prepareIntent == null) {
+            val serviceIntent = Intent(this, FirewallVpnService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } else {
+            // 权限被撤销或被要求重新授权：发通知引导家长去系统 VPN 设置打开 Always-on + “无 VPN 不允许连接”
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "phonenet_vpn_alert"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                nm.createNotificationChannel(NotificationChannel(channelId, "PhoneNet VPN 警示", NotificationManager.IMPORTANCE_HIGH))
+            }
+            val settingsIntent = Intent(android.provider.Settings.ACTION_VPN_SETTINGS)
+            val pi = PendingIntent.getActivity(
+                this, 1, settingsIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+            val notif = NotificationCompat.Builder(this, channelId)
+                .setContentTitle("VPN 已断开")
+                .setContentText("请在系统 VPN 设置中将 PhoneNet 设为“始终开启”，并启用“无 VPN 不允许连接”。")
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build()
+            nm.notify(1002, notif)
+        }
+    }
 }

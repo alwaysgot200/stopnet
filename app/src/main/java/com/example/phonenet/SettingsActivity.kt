@@ -27,6 +27,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnSaveEmail: Button
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
+    private lateinit var btnOpenVpnSettings: Button
 
     // SMTP 配置
     private lateinit var etSmtpHost: EditText
@@ -64,6 +65,8 @@ class SettingsActivity : AppCompatActivity() {
         etSmtpPass = findViewById(R.id.etSmtpPass)
         etSmtpFrom = findViewById(R.id.etSmtpFrom)
         btnTestSmtp = findViewById(R.id.btnTestSmtp)
+        btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
+        btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
 
         // 如存在开机自启控件
         swAutoStart = findViewById(R.id.swAutoStart)
@@ -97,7 +100,26 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        btnEnableAdmin.setOnClickListener { requestDeviceAdmin() }
+        // 如果本应用是设备所有者（DO），自动应用强保护策略：
+        // 1) 设置 Always-on VPN 并启用 lockdown（所有网络必须经过 VPN）
+        // 2) 禁止用户修改 VPN 设置
+        // 3) 禁止卸载本应用
+        try {
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = ComponentName(this, MyDeviceAdminReceiver::class.java)
+            if (dpm.isDeviceOwnerApp(packageName)) {
+                // Always-on VPN + lockdown
+                dpm.setAlwaysOnVpnPackage(admin, packageName, true)
+                // 禁止修改 VPN 设置
+                dpm.addUserRestriction(admin, android.os.UserManager.DISALLOW_CONFIG_VPN)
+                // 禁止卸载本应用
+                dpm.setUninstallBlocked(admin, packageName, true)
+                // 如设备支持，也可进一步限制状态栏下拉（仅 DO 可用，部分厂商可能不同）
+                // try { dpm.setStatusBarDisabled(admin, true) } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {
+            // 安全忽略（非 DO 或设备不支持时不会崩溃）
+        }
         btnSaveEmail.setOnClickListener { saveSettings() }
         btnTestSmtp.setOnClickListener { sendTestEmail() }
     }
@@ -242,6 +264,14 @@ class SettingsActivity : AppCompatActivity() {
             android.widget.Toast.makeText(this, "测试邮件已发送（请查看收件箱）", android.widget.Toast.LENGTH_SHORT).show()
         } catch (_: Exception) {
             android.widget.Toast.makeText(this, "发送失败，请检查配置", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openSystemVpnSettings() {
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_VPN_SETTINGS))
+        } catch (_: Exception) {
+            android.widget.Toast.makeText(this, "无法打开系统 VPN 设置", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }
