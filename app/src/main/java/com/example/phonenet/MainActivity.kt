@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStop: Button
     private lateinit var btnSettings: Button
     private lateinit var btnIgnoreBattery: Button
-
+    private var hasResumedOnce = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -212,8 +212,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() {
         super.onResume()
-        // 标志位：避免首次启动在 onCreate 和首次 onResume 之间重复检查
-        private var hasResumedOnce = false
+        // 首次启动的 onResume 不再重复检查；之后每次回到前台都检查
         if (hasResumedOnce) {
             checkAndGateByPin()
         }
