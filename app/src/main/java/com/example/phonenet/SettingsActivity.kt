@@ -70,6 +70,10 @@ class SettingsActivity : AppCompatActivity() {
         btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
         btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
 
+        // 移除设置页的“忽略电池优化”按钮及监听
+        // btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
+        // btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
+
         // 如存在开机自启控件
         swAutoStart = findViewById(R.id.swAutoStart)
         // 预填开机自启状态（默认：已开启）
@@ -330,8 +334,8 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 返回设置页时刷新电池优化提示状态
-        updateBatteryButtonState()
+        // 返回设置页不再刷新电池优化提示（主界面负责）
+        // 移除：updateBatteryButtonState()
     }
 
     private fun updateBatteryButtonState() {

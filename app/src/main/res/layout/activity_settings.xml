@@ -92,12 +92,16 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
+    <!-- 移除设置页“忽略电池优化”按钮 -->
+    <!--
     <Button
         android:id="@+id/btnIgnoreBattery"
         android:text="@string/ignore_battery_optimization"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
+    -->
+
     <Switch
         android:id="@+id/swAutoStart"
         android:text="@string/auto_start_on_boot"

@@ -414,6 +414,8 @@ class MainActivity : AppCompatActivity() {
         if (didShowPin) {
             updateBatteryButtonState()
             updateToggleButtonState()
+            // Android 12+：检查并引导授权“精确闹钟”，用于AlarmManager保活
+            requestExactAlarmPermissionIfNeeded()
             checkAndRestartServiceIfNeeded()
         }
         
@@ -491,13 +493,21 @@ class MainActivity : AppCompatActivity() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             val pm = getSystemService(android.os.PowerManager::class.java)
             val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
-            if (!ignored) {
-                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization) + "（未忽略，建议设置）"
-                btnIgnoreBattery.setTextColor(android.graphics.Color.RED)
-            } else {
-                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
-                btnIgnoreBattery.setTextColor(android.graphics.Color.parseColor("#222222"))
-            }
+            // 文案保持一致，仅调整配色
+            btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
+            val bg = if (ignored) "#4CAF50" else "#F44336" // 已忽略=绿；未忽略=红
+            btnIgnoreBattery.setBackgroundColor(android.graphics.Color.parseColor(bg))
+            btnIgnoreBattery.setTextColor(android.graphics.Color.WHITE)
+        }
+    }
+    private fun requestExactAlarmPermissionIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            try {
+                val am = getSystemService(android.app.AlarmManager::class.java)
+                if (am?.canScheduleExactAlarms() == false) {
+                    startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                }
+            } catch (_: Exception) { }
         }
     }
 }

@@ -64,8 +64,19 @@ class FirewallVpnService : VpnService() {
                 }
                 val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
                     (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
-                val pi = android.app.PendingIntent.getBroadcast(this, 1001, intent, flags)
-                am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 3000, pi)
+                val canExact = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    am?.canScheduleExactAlarms() == true
+                } else true
+
+                if (canExact) {
+                    val pi = android.app.PendingIntent.getBroadcast(this, 1001, intent, flags)
+                    am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 3000, pi)
+                } else {
+                    // 无精确闹钟授权：使用 JobScheduler 兜底
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        scheduleJobRestart()
+                    }
+                }
             } catch (_: Exception) { }
         }
     }
@@ -112,12 +123,22 @@ class FirewallVpnService : VpnService() {
             val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
                 (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
             
-            // 设置多个不同时间点的重启检查
-            val restartTimes = longArrayOf(3000, 10000, 30000, 60000, 120000) // 3秒、10秒、30秒、1分钟、2分钟
-            
-            restartTimes.forEachIndexed { index, delay ->
-                val pi = android.app.PendingIntent.getBroadcast(this, 1010 + index, intent, flags)
-                am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delay, pi)
+            val canExact = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                am?.canScheduleExactAlarms() == true
+            } else true
+
+            if (canExact) {
+                // 精确闹钟触发前台服务，符合Android 12+白名单场景
+                val restartTimes = longArrayOf(3000, 10000, 30000, 60000, 120000)
+                restartTimes.forEachIndexed { index, delay ->
+                    val pi = android.app.PendingIntent.getBroadcast(this, 1010 + index, intent, flags)
+                    am?.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delay, pi)
+                }
+            } else {
+                // 无精确闹钟授权：降级使用 JobScheduler 兜底
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    scheduleJobRestart()
+                }
             }
         } catch (_: Exception) { }
     }
