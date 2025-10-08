@@ -86,19 +86,28 @@ class FirewallVpnService : VpnService() {
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
 
         if (!userStopped) {
-            for (i in 0..2) {
-                try {
-                    val serviceIntent = Intent(this, FirewallVpnService::class.java)
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        startForegroundService(serviceIntent)
-                    } else {
-                        startService(serviceIntent)
-                    }
-                } catch (_: Exception) { }
-            }
-            scheduleMultipleRestarts()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                scheduleJobRestart()
+            // 新增：短暂持有唤醒锁，确保下面的重启/调度不被 Doze 影响
+            val pm = getSystemService(android.os.PowerManager::class.java)
+            val wl = pm?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "phonenet:restart")
+            try {
+                wl?.acquire(5000)
+
+                for (i in 0..2) {
+                    try {
+                        val serviceIntent = Intent(this, FirewallVpnService::class.java)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            startForegroundService(serviceIntent)
+                        } else {
+                            startService(serviceIntent)
+                        }
+                    } catch (_: Exception) { }
+                }
+                scheduleMultipleRestarts()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    scheduleJobRestart()
+                }
+            } finally {
+                try { wl?.release() } catch (_: Exception) { }
             }
         }
     }

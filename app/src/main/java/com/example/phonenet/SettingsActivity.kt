@@ -144,8 +144,6 @@ class SettingsActivity : AppCompatActivity() {
         btnEnableAdmin.setOnClickListener { requestDeviceAdmin() }
         btnSaveEmail.setOnClickListener { saveSettings() }
         btnTestSmtp.setOnClickListener { sendTestEmail() }
-        btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
-        btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
         // PIN 门禁：设置页不再弹 PIN
         // checkAndGateByPin()
 
