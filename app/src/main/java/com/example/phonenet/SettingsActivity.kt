@@ -28,7 +28,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
     private lateinit var btnOpenVpnSettings: Button
-    private lateinit var btnIgnoreBattery: Button
+    private lateinit var btnAutoStart: Button
 
     // SMTP 配置
     private lateinit var etSmtpHost: EditText
@@ -70,9 +70,10 @@ class SettingsActivity : AppCompatActivity() {
         btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
         btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
 
-        // 移除设置页“忽略电池优化”按钮的绑定与点击逻辑
-        // btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
-        // btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
+        btnAutoStart = findViewById(R.id.btnAutoStart)
+        btnAutoStart.setOnClickListener { requestAutoStartPermission() }
+
+
 
         // 如存在开机自启控件
         swAutoStart = findViewById(R.id.swAutoStart)
@@ -261,10 +262,7 @@ class SettingsActivity : AppCompatActivity() {
             putString("smtp_user", user)
             putString("smtp_pass", pass)
             putString("smtp_from", from)
-            val autoStart = swAutoStart.isChecked
-            prefs.edit().apply {
-                putBoolean("auto_start_on_boot", autoStart)
-            }.apply()
+            putBoolean("auto_start_on_boot", swAutoStart.isChecked)
         }.apply()
 
         // DPS 存储（未解锁阶段需要的配置）
@@ -278,6 +276,38 @@ class SettingsActivity : AppCompatActivity() {
             putString("smtp_pass", pass)
             putString("smtp_from", from)
         }.apply()
+    }
+
+    private fun requestAutoStartPermission() {
+        // 尝试跳转到厂商的自启动管理页面
+        val intents = arrayOf(
+            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
+            Intent().setComponent(ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
+            Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
+            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
+            Intent().setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
+            Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
+            Intent().setComponent(ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity")),
+            Intent().setComponent(ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")),
+        )
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                return
+            } catch (e: Exception) {
+                // continue
+            }
+        }
+        // 如果都失败，则打开通用设置
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "无法自动打开自启动设置，请手动查找", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun sendTestEmail() {
@@ -301,53 +331,6 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(android.provider.Settings.ACTION_VPN_SETTINGS))
         } catch (_: Exception) {
             android.widget.Toast.makeText(this, "无法打开系统 VPN 设置", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun requestIgnoreBatteryOptimizations() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            val pm = getSystemService(android.os.PowerManager::class.java)
-            val pkg = packageName
-            if (pm?.isIgnoringBatteryOptimizations(pkg) == true) {
-                android.widget.Toast.makeText(this, "已忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
-                return
-            }
-            try {
-                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = android.net.Uri.parse("package:$pkg")
-                }
-                startActivity(intent)
-                android.widget.Toast.makeText(this, getString(R.string.battery_opt_desc), android.widget.Toast.LENGTH_SHORT).show()
-            } catch (_: Exception) {
-                try {
-                    startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为\"不要优化\"", android.widget.Toast.LENGTH_LONG).show()
-                } catch (__: Exception) {
-                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找\"电池优化\"", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }
-        } else {
-            android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // 返回设置页时不再刷新电池优化提示
-        // updateBatteryButtonState()
-    }
-
-    private fun updateBatteryButtonState() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            val pm = getSystemService(android.os.PowerManager::class.java)
-            val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
-            if (!ignored) {
-                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization) + "（未忽略，建议设置）"
-                btnIgnoreBattery.setTextColor(android.graphics.Color.RED)
-            } else {
-                btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
-                btnIgnoreBattery.setTextColor(android.graphics.Color.parseColor("#222222"))
-            }
         }
     }
 }
