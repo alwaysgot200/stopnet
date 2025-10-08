@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnToggleVpn: Button
     private lateinit var btnSettings: Button
     private lateinit var btnIgnoreBattery: Button
+    private lateinit var btnAutoStart: Button
 
     private var didShowPin = false
     private var isPinDialogShowing = false
@@ -44,13 +45,15 @@ class MainActivity : AppCompatActivity() {
         btnToggleVpn = findViewById(R.id.btnToggleVpn)
         btnSettings = findViewById(R.id.btnSettings)
         btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
+        btnAutoStart = findViewById(R.id.btnAutoStart)
 
         btnToggleVpn.setOnClickListener { toggleVpn() }
         btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
+        btnAutoStart.setOnClickListener { requestAutoStartPermission() }
 
         updateBatteryButtonState()
-        updateToggleButtonState()
+        updateStatus()
 
         // 本次会话仅在应用启动时验证一次 PIN 验证
         showPinVerification()
@@ -65,7 +68,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            updateToggleButtonState()
+            updateStatus()
         }
     }
 
@@ -80,10 +83,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        updateStatus()
+        updateAutoStartButtonState()
         updateBatteryButtonState()
-        updateToggleButtonState()
-        requestExactAlarmPermissionIfNeeded()
-        checkAndRestartServiceIfNeeded()
+
+        val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
+        registerReceiver(vpnStateReceiver, filter)
     }
 
     override fun onPause() {
@@ -122,7 +127,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             checkAndRestartServiceIfNeeded()
         }
-        updateToggleButtonState()
+        updateStatus()
     }
 
     private fun attemptStartVpnService() {
@@ -149,7 +154,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(serviceIntent)
         }
-        updateToggleButtonState()
+        updateStatus()
     }
 
     private fun toggleVpn() {
@@ -226,10 +231,10 @@ class MainActivity : AppCompatActivity() {
         val serviceIntent = Intent(this, FirewallVpnService::class.java)
         stopService(serviceIntent)
 
-        updateToggleButtonState()
+        updateStatus()
     }
 
-    private fun updateToggleButtonState() {
+    private fun updateStatus() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val running = prefs.getBoolean("vpn_running", false)
         btnToggleVpn.text = getString(if (running) R.string.stop_vpn else R.string.start_vpn)
@@ -239,24 +244,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateAutoStartButtonState() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", true)
-        // This button and its update logic are not fully implemented in the UI.
-        // For now, this function is a placeholder.
-    }
+        val sharedPreferences = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val autoStartEnabled = sharedPreferences.getBoolean("auto_start_enabled", false)
 
-    private fun updateAutoStartButtonState() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", true)
-        // This button and its update logic are not fully implemented in the UI.
-        // For now, this function is a placeholder.
-    }
-
-    private fun updateAutoStartButtonState() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", true)
-        // This button and its update logic are not fully implemented in the UI.
-        // For now, this function is a placeholder.
+        if (autoStartEnabled) {
+            btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorGreen))
+            btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        } else {
+            btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorRed))
+            btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        }
     }
 
     private fun updateBatteryButtonState() {
@@ -269,19 +266,6 @@ class MainActivity : AppCompatActivity() {
             btnIgnoreBattery.setTextColor(android.graphics.Color.WHITE)
         }
     }
-
-    private fun updateAutoStartButtonState() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false) // 默认关闭
-        if (autoStartEnabled) {
-            btnAutoStart.setBackgroundColor(android.graphics.Color.GREEN)
-            btnAutoStart.text = "自动启动：已启用"
-        } else {
-            btnAutoStart.setBackgroundColor(android.graphics.Color.RED)
-            btnAutoStart.text = "自动启动：已禁用"
-        }
-    }
-
     private fun requestAutoStartPermission() {
         // 切换期望的状态并保存
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
