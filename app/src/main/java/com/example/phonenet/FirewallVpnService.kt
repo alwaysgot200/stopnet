@@ -18,12 +18,39 @@ class FirewallVpnService : VpnService() {
     companion object {
         const val ACTION_VPN_STATE_CHANGED = "com.example.phonenet.VPN_STATE_CHANGED"
         const val EXTRA_VPN_STATE = "vpn_state"
+        const val ACTION_STOP_VPN = "com.example.phonenet.ACTION_STOP_VPN"
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var workerThread: Thread? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 处理显式 STOP：及时广播 false，清理资源并停止服务，避免重启
+        if (intent?.action == ACTION_STOP_VPN) {
+            try {
+                val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                p1.edit().putBoolean("vpn_user_stop", true).apply()
+                p1.edit().putBoolean("vpn_running", false).apply()
+                val dps = createDeviceProtectedStorageContext()
+                    .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                dps.edit().putBoolean("vpn_user_stop", true).apply()
+                dps.edit().putBoolean("vpn_running", false).apply()
+            } catch (_: Exception) { }
+
+            val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
+                putExtra(EXTRA_VPN_STATE, false)
+            }
+            sendBroadcast(broadcastIntent)
+
+            try { workerThread?.interrupt() } catch (_: Exception) { }
+            workerThread = null
+            try { vpnInterface?.close() } catch (_: Exception) { }
+            vpnInterface = null
+            stopForeground(true)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         startForegroundNotification()
         setupAndStartVpn()
 
@@ -37,7 +64,6 @@ class FirewallVpnService : VpnService() {
             dps.edit().putBoolean("vpn_user_stop", false).apply()
         } catch (_: Exception) { }
 
-        // 发送广播通知 UI 更新
         val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
             putExtra(EXTRA_VPN_STATE, true)
         }

@@ -4,12 +4,8 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -23,22 +19,17 @@ import com.example.phonenet.admin.MyDeviceAdminReceiver
 
 class SettingsActivity : AppCompatActivity() {
 
-    private lateinit var btnEnableAdmin: Button
-    private lateinit var btnSaveEmail: Button
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
     private lateinit var btnOpenVpnSettings: Button
-
-    // SMTP 配置
+    private lateinit var btnTestSmtp: Button
+    private lateinit var swSmtpSsl: android.widget.Switch
+    private lateinit var swSmtpTls: android.widget.Switch
     private lateinit var etSmtpHost: EditText
     private lateinit var etSmtpPort: EditText
-    private lateinit var swSmtpTls: android.widget.Switch
-    private lateinit var swSmtpSsl: android.widget.Switch
     private lateinit var etSmtpUser: EditText
     private lateinit var etSmtpPass: EditText
     private lateinit var etSmtpFrom: EditText
-    private lateinit var btnTestSmtp: Button
-
 
     private val prefs by lazy { getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
     private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
@@ -50,22 +41,20 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        btnEnableAdmin = findViewById(R.id.btnEnableAdmin)
-        btnSaveEmail = findViewById(R.id.btnSaveEmail)
         etParentEmail = findViewById(R.id.etParentEmail)
         rvApps = findViewById(R.id.rvApps)
-
-        // 绑定 SMTP 控件
+        btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
+        btnTestSmtp = findViewById(R.id.btnTestSmtp)
+        swSmtpSsl = findViewById(R.id.swSmtpSsl)
+        swSmtpTls = findViewById(R.id.swSmtpTls)
         etSmtpHost = findViewById(R.id.etSmtpHost)
         etSmtpPort = findViewById(R.id.etSmtpPort)
-        swSmtpTls = findViewById(R.id.swSmtpTls)
-        swSmtpSsl = findViewById(R.id.swSmtpSsl)
         etSmtpUser = findViewById(R.id.etSmtpUser)
         etSmtpPass = findViewById(R.id.etSmtpPass)
         etSmtpFrom = findViewById(R.id.etSmtpFrom)
-        btnTestSmtp = findViewById(R.id.btnTestSmtp)
-        btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
+
         btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
+        btnTestSmtp.setOnClickListener { sendTestEmail() }
 
         // 预填家长邮箱
         etParentEmail.setText(prefs.getString("parent_email", ""))
@@ -89,36 +78,44 @@ class SettingsActivity : AppCompatActivity() {
                     etSmtpPort.setText("587")
                 }
             }
+            persistSmtpSettings()
+        }
+        swSmtpTls.setOnCheckedChangeListener { _, _ ->
+            persistSmtpSettings()
         }
 
-        // 如果本应用是设备所有者（DO），自动应用强保护策略：
-        // 1) 设置 Always-on VPN 并启用 lockdown（所有网络必须经过 VPN）
-        // 2) 禁止用户修改 VPN 设置
-        // 3) 禁止卸载本应用
+        // 自动保存：家长邮箱实时保存
+        etParentEmail.addTextChangedListener(simpleWatcher {
+            prefs.edit().putString("parent_email", etParentEmail.text?.toString()?.trim() ?: "").apply()
+        })
+
+        // 自动保存：SMTP 文本输入实时保存
+        val persist = { persistSmtpSettings() }
+        etSmtpHost.addTextChangedListener(simpleWatcher(persist))
+        etSmtpPort.addTextChangedListener(simpleWatcher(persist))
+        etSmtpUser.addTextChangedListener(simpleWatcher(persist))
+        etSmtpPass.addTextChangedListener(simpleWatcher(persist))
+        etSmtpFrom.addTextChangedListener(simpleWatcher(persist))
+
+        // DO（设备所有者）强保护策略（保留，按钮入口已移除）
         try {
             val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val admin = ComponentName(this, MyDeviceAdminReceiver::class.java)
             if (dpm.isDeviceOwnerApp(packageName)) {
-                // Always-on VPN + lockdown
                 dpm.setAlwaysOnVpnPackage(admin, packageName, true)
-                // 禁止修改 VPN 设置
                 dpm.addUserRestriction(admin, android.os.UserManager.DISALLOW_CONFIG_VPN)
-                // 禁止卸载本应用（DO 才有效）
                 dpm.setUninstallBlocked(admin, packageName, true)
-                // 允许本应用进入锁定任务（Kiosk）模式，避免随意退出
                 dpm.setLockTaskPackages(admin, arrayOf(packageName))
-                // 如设备支持，可进一步限制状态栏（部分厂商支持）
-                // try { dpm.setStatusBarDisabled(admin, true) } catch (_: Exception) {}
             }
         } catch (_: Exception) {
             // 安全忽略（非 DO 或设备不支持时不会崩溃）
         }
 
-        btnEnableAdmin.setOnClickListener { requestDeviceAdmin() }
-        btnSaveEmail.setOnClickListener { saveSettings() }
-        btnTestSmtp.setOnClickListener { sendTestEmail() }
-       
-
+        // 列表与白名单
+        adapter = AppAdapter(appItems)
+        rvApps.layoutManager = LinearLayoutManager(this)
+        rvApps.adapter = adapter
+        loadLaunchableApps()
     }
 
     private fun showEnterPinDialog(saved: String) {
@@ -203,46 +200,6 @@ class SettingsActivity : AppCompatActivity() {
         adapter.notifyDataSetChanged()
     }
 
-    private fun saveSettings() {
-        val email = etParentEmail.text?.toString()?.trim()
-        val selected = adapter.getSelectedPackages().toMutableSet()
-
-        // 读取 SMTP 输入
-        val host = etSmtpHost.text?.toString()?.trim() ?: ""
-        val port = etSmtpPort.text?.toString()?.toIntOrNull() ?: if (swSmtpSsl.isChecked) 465 else 587
-        val tls = swSmtpTls.isChecked
-        val ssl = swSmtpSsl.isChecked
-        val user = etSmtpUser.text?.toString()?.trim() ?: ""
-        val pass = etSmtpPass.text?.toString()?.trim() ?: ""
-        val from = etSmtpFrom.text?.toString()?.trim() ?: ""
-
-        // 正常存储
-        prefs.edit().apply {
-            putString("parent_email", email)
-            putStringSet("whitelist_packages", selected)
-            putString("smtp_host", host)
-            putInt("smtp_port", port)
-            putBoolean("smtp_tls", tls)
-            putBoolean("smtp_ssl", ssl)
-            putString("smtp_user", user)
-            putString("smtp_pass", pass)
-            putString("smtp_from", from)
-        }.apply()
-
-        // DPS 存储（未解锁阶段需要的配置）
-        dpsPrefs.edit().apply {
-            putStringSet("whitelist_packages", selected)
-            putString("smtp_host", host)
-            putInt("smtp_port", port)
-            putBoolean("smtp_tls", tls)
-            putBoolean("smtp_ssl", ssl)
-            putString("smtp_user", user)
-            putString("smtp_pass", pass)
-            putString("smtp_from", from)
-        }.apply()
-    }
-
-
     private fun sendTestEmail() {
         val to = etParentEmail.text?.toString()?.trim()
         if (to.isNullOrEmpty()) {
@@ -265,6 +222,52 @@ class SettingsActivity : AppCompatActivity() {
         } catch (_: Exception) {
             android.widget.Toast.makeText(this, "无法打开系统 VPN 设置", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // 勾选变化后立即持久化白名单（供适配器调用；存在即可）
+    fun persistWhitelist() {
+        val selected = adapter.getSelectedPackages().toMutableSet()
+        prefs.edit().putStringSet("whitelist_packages", selected).apply()
+        dpsPrefs.edit().putStringSet("whitelist_packages", selected).apply()
+    }
+
+    // 统一持久化 SMTP 配置（正常存储 + DPS 存储）
+    private fun persistSmtpSettings() {
+        val host = etSmtpHost.text?.toString()?.trim() ?: ""
+        val port = etSmtpPort.text?.toString()?.toIntOrNull()
+            ?: if (swSmtpSsl.isChecked) 465 else 587
+        val tls = swSmtpTls.isChecked
+        val ssl = swSmtpSsl.isChecked
+        val user = etSmtpUser.text?.toString()?.trim() ?: ""
+        val pass = etSmtpPass.text?.toString()?.trim() ?: ""
+        val from = etSmtpFrom.text?.toString()?.trim() ?: ""
+
+        prefs.edit().apply {
+            putString("smtp_host", host)
+            putInt("smtp_port", port)
+            putBoolean("smtp_tls", tls)
+            putBoolean("smtp_ssl", ssl)
+            putString("smtp_user", user)
+            putString("smtp_pass", pass)
+            putString("smtp_from", from)
+        }.apply()
+
+        dpsPrefs.edit().apply {
+            putString("smtp_host", host)
+            putInt("smtp_port", port)
+            putBoolean("smtp_tls", tls)
+            putBoolean("smtp_ssl", ssl)
+            putString("smtp_user", user)
+            putString("smtp_pass", pass)
+            putString("smtp_from", from)
+        }.apply()
+    }
+
+    // Simple TextWatcher to auto-save on text change
+    private fun simpleWatcher(onChange: () -> Unit) = object : android.text.TextWatcher {
+        override fun afterTextChanged(s: android.text.Editable?) { onChange() }
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
     }
 }
 

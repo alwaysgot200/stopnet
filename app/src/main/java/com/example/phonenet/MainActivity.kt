@@ -14,7 +14,6 @@ import androidx.appcompat.app.AppCompatActivity
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.content.SharedPreferences
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,17 +23,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnAutoStart: Button
 
     private var didShowPin = false
-    private var isPinDialogShowing = false
+    private var isPinDialogShowing: Boolean = false
     private lateinit var appPrefs: android.content.SharedPreferences
-    private val prefsChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "vpn_running") {
-            updateStatus()
+
+    private val prefsChangeListener =
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "vpn_running") {
+                updateStatus()
+            }
         }
-    }
+
     private val vpnStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == FirewallVpnService.ACTION_VPN_STATE_CHANGED) {
-                updateStatus()
+                val state = intent.getBooleanExtra(FirewallVpnService.EXTRA_VPN_STATE, false)
+                updateStatus(state)
             }
         }
     }
@@ -58,18 +61,18 @@ class MainActivity : AppCompatActivity() {
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
         btnAutoStart.setOnClickListener { requestAutoStartPermission() }
 
-        // 提前注册广播接收器，避免首次启动时错过服务的状态广播
+        // 注册服务状态广播
         val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
         registerReceiver(vpnStateReceiver, filter)
 
-        // 监听 vpn_running 变化，作为广播兜底
+        // 监听 vpn_running 变化
         appPrefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         appPrefs.registerOnSharedPreferenceChangeListener(prefsChangeListener)
 
         updateBatteryButtonState()
         updateStatus()
 
-        // 本次会话仅在应用启动时验证一次 PIN 验证
+        // 启动时进行一次 PIN 验证
         showPinVerification()
     }
 
@@ -82,14 +85,14 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            updateStatus()
+            updateStatus(true)
+            updateStatusSoon()
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_NOTIF) {
-            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             // 无论授予与否，执行自动启动逻辑或刷新
             handleAutoStartLogic()
         }
@@ -106,16 +109,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-            try {
-        appPrefs.unregisterOnSharedPreferenceChangeListener(prefsChangeListener)
-    } catch (_: Exception) { }
-        super.onDestroy()
-        try {
-            unregisterReceiver(vpnStateReceiver)
-        } catch (_: Exception) { }
         try {
             appPrefs.unregisterOnSharedPreferenceChangeListener(prefsChangeListener)
         } catch (_: Exception) { }
+        try {
+            unregisterReceiver(vpnStateReceiver)
+        } catch (_: Exception) { }
+        super.onDestroy()
     }
 
     private fun showPinVerification() {
@@ -150,7 +150,7 @@ class MainActivity : AppCompatActivity() {
             checkAndRestartServiceIfNeeded()
         }
         updateStatus()
-        updateStatusSoon() // 首次自动启动路径下也补充延时刷新
+        updateStatusSoon()
     }
 
     private fun attemptStartVpnService() {
@@ -164,12 +164,23 @@ class MainActivity : AppCompatActivity() {
         }
         val intent = VpnService.prepare(this)
         if (intent != null) {
-            startActivityForResult(intent, PREPARE_VPN_REQ)
+            AlertDialog.Builder(this)
+                .setMessage(getString(R.string.vpn_permission_required))
+                .setPositiveButton("OK") { _, _ ->
+                    startActivityForResult(intent, PREPARE_VPN_REQ)
+                }
+                .show()
         } else {
-            startVpnService()
+            val serviceIntent = Intent(this, FirewallVpnService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            updateStatus(true)
         }
         updateStatus()
-        updateStatusSoon() // 首次启动后延迟二次刷新，避免读到旧状态
+        updateStatusSoon()
     }
 
     private fun startVpnService() {
@@ -179,8 +190,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(serviceIntent)
         }
-        updateStatus()
-        updateStatusSoon() // 服务启动后再延时刷新，确保读取到 vpn_running=true
+        updateStatus(true)
+        updateStatusSoon()
     }
 
     private fun toggleVpn() {
@@ -188,7 +199,7 @@ class MainActivity : AppCompatActivity() {
         val running = prefs.getBoolean("vpn_running", false)
         val savedPin = prefs.getString("pin", "") ?: ""
 
-        // 按钮点击不再重复弹 PIN；仅在未验证且存在 PIN 时弹一次
+        // 未验证且存在 PIN 时先弹一次
         if (!didShowPin && savedPin.isNotEmpty()) {
             showEnterPinDialog(savedPin) {
                 didShowPin = true
@@ -201,7 +212,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startVpn() {
-        // 通知权限（Android 13+）
+        // Android 13+ 通知权限
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             if (!granted) {
@@ -239,7 +250,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            updateStatus()
+            updateStatus(true)
+            updateStatusSoon()
         }
     }
 
@@ -254,22 +266,36 @@ class MainActivity : AppCompatActivity() {
             dps.edit().putBoolean("vpn_running", false).apply()
         } catch (_: Exception) { }
 
-        val serviceIntent = Intent(this, FirewallVpnService::class.java)
-        stopService(serviceIntent)
-
-        updateStatus()
+        requestStopVpn()
+        updateStatus(false)
+        updateStatusSoon()
     }
 
-    private fun updateStatus() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val running = prefs.getBoolean("vpn_running", false)
-        btnToggleVpn.text = getString(if (running) R.string.stop_vpn else R.string.start_vpn)
-        val bg = if (running) "#F44336" else "#4CAF50"
+    private fun requestStopVpn() {
+        val stopIntent = Intent(this, FirewallVpnService::class.java).apply {
+            action = FirewallVpnService.ACTION_STOP_VPN
+        }
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(stopIntent)
+            } else {
+                startService(stopIntent)
+            }
+        } catch (_: Exception) { }
+    }
+
+    private fun updateStatus(running: Boolean? = null) {
+        val isRunning = running ?: run {
+            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val dps = createDeviceProtectedStorageContext()
+                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            p1.getBoolean("vpn_running", false) || dps.getBoolean("vpn_running", false)
+        }
+        btnToggleVpn.text = getString(if (isRunning) R.string.stop_vpn else R.string.start_vpn)
+        val bg = if (isRunning) "#F44336" else "#4CAF50"
         btnToggleVpn.setBackgroundColor(android.graphics.Color.parseColor(bg))
         btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
     }
-
-
 
     private fun updateBatteryButtonState() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -281,14 +307,15 @@ class MainActivity : AppCompatActivity() {
             btnIgnoreBattery.setTextColor(android.graphics.Color.WHITE)
         }
     }
+
     private fun requestAutoStartPermission() {
-        // 切换期望的状态并保存
+        // 切换期望状态并保存
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val currentStatus = prefs.getBoolean("auto_start_on_boot", false)
         prefs.edit().putBoolean("auto_start_on_boot", !currentStatus).apply()
-        updateAutoStartButtonState() // 更新按钮状态
+        updateAutoStartButtonState()
 
-        // 尝试跳转到厂商的自启动管理页面
+        // 厂商自启动管理页面
         val intents = arrayOf(
             Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
             Intent().setComponent(ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
@@ -308,15 +335,12 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
                 android.widget.Toast.makeText(this, "请在列表中找到 PhoneNet 并允许自动启动", android.widget.Toast.LENGTH_LONG).show()
                 return
-            } catch (e: Exception) {
-                // continue
-            }
+            } catch (_: Exception) { /* continue */ }
         }
-        // 如果都失败，则打开通用设置
         try {
             startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
             android.widget.Toast.makeText(this, "无法自动打开自启动设置，请手动查找", android.widget.Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             android.widget.Toast.makeText(this, "无法打开设置，请手动操作", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
@@ -337,32 +361,33 @@ class MainActivity : AppCompatActivity() {
                 try {
                     startActivity(standard)
                     android.widget.Toast.makeText(this, "请允许忽略电池优化以提升稳定性", android.widget.Toast.LENGTH_LONG).show()
-                    // 不要 return；继续尝试厂商入口作为兼容兜底
                 } catch (_: Exception) { /* continue */ }
-                }
+            }
+
             val tried = startFirstResolvedIntent(
                 Intent("android.intent.action.POWER_USAGE_SUMMARY"),
                 Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS),
 
-                // VIVO / OriginOS 常见候选
-                Intent().setComponent(android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
-                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
-                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
-                Intent().setComponent(android.content.ComponentName("com.iqoo.powersaving", "com.iqoo.powersaving.PowerSavingManagerActivity")),
-                Intent().setComponent(android.content.ComponentName("com.vivo.settings", "com.vivo.settings.Battery")),
+                // VIVO / OriginOS
+                Intent().setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
+                Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
+                Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
+                Intent().setComponent(ComponentName("com.iqoo.powersaving", "com.iqoo.powersaving.PowerSavingManagerActivity")),
+                Intent().setComponent(ComponentName("com.vivo.settings", "com.vivo.settings.Battery")),
 
                 // 其他厂商入口
                 Intent("miui.intent.action.OP_AUTO_START").addCategory(Intent.CATEGORY_DEFAULT),
-                Intent().setComponent(android.content.ComponentName("com.miui.securitycenter", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")),
-                Intent().setComponent(android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
-                Intent().setComponent(android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
-                Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
-                Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
-                Intent().setComponent(android.content.ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
-                Intent().setComponent(android.content.ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")),
-                Intent().setComponent(android.content.ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
-                Intent().setComponent(android.content.ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity"))
+                Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")),
+                Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
+                Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
+                Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
+                Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
+                Intent().setComponent(ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
+                Intent().setComponent(ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")),
+                Intent().setComponent(ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
+                Intent().setComponent(ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity"))
             )
+
             if (tried) {
                 android.widget.Toast.makeText(this, "请在电池/后台管理中为 PhoneNet 设为“无限制”或“允许后台运行”", android.widget.Toast.LENGTH_LONG).show()
                 return
@@ -384,7 +409,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 只启动能解析的 Intent（避免直接抛异常）
     private fun startFirstResolvedIntent(vararg intents: Intent): Boolean {
         for (intent in intents) {
             if (intent.resolveActivity(packageManager) != null) {
@@ -403,8 +427,8 @@ class MainActivity : AppCompatActivity() {
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
 
         if (shouldBeRunning && !userStopped) {
-            val vpnService = VpnService.prepare(this)
-            if (vpnService == null) {
+            val prep = VpnService.prepare(this)
+            if (prep == null) {
                 val serviceIntent = Intent(this, FirewallVpnService::class.java)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     startForegroundService(serviceIntent)
@@ -466,6 +490,7 @@ class MainActivity : AppCompatActivity() {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
+
     private fun updateAutoStartButtonState() {
         val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false)
@@ -478,6 +503,7 @@ class MainActivity : AppCompatActivity() {
             btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
         }
     }
+
     private fun showSetPinDialog(onSuccess: () -> Unit) {
         if (isPinDialogShowing) return
         isPinDialogShowing = true
@@ -536,11 +562,11 @@ class MainActivity : AppCompatActivity() {
         input1.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.showSoftInput(input1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-    }    
+    }
+
     // 延迟再次刷新状态，避免服务写入偏晚导致首次 UI 不更新
     private fun updateStatusSoon() {
-    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 400)
-    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 1200)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 400)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 1200)
     }
 }
-
