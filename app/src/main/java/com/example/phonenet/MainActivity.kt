@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.content.SharedPreferences
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,7 +25,12 @@ class MainActivity : AppCompatActivity() {
 
     private var didShowPin = false
     private var isPinDialogShowing = false
-
+    private lateinit var appPrefs: android.content.SharedPreferences
+    private val prefsChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "vpn_running") {
+            updateStatus()
+        }
+    }
     private val vpnStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == FirewallVpnService.ACTION_VPN_STATE_CHANGED) {
@@ -51,6 +57,14 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
         btnAutoStart.setOnClickListener { requestAutoStartPermission() }
+
+        // 提前注册广播接收器，避免首次启动时错过服务的状态广播
+        val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
+        registerReceiver(vpnStateReceiver, filter)
+
+        // 监听 vpn_running 变化，作为广播兜底
+        appPrefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        appPrefs.registerOnSharedPreferenceChangeListener(prefsChangeListener)
 
         updateBatteryButtonState()
         updateStatus()
@@ -91,9 +105,17 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(vpnStateReceiver, filter)
     }
 
-    override fun onPause() {
-        super.onPause()
-        unregisterReceiver(vpnStateReceiver)
+    override fun onDestroy() {
+            try {
+        appPrefs.unregisterOnSharedPreferenceChangeListener(prefsChangeListener)
+    } catch (_: Exception) { }
+        super.onDestroy()
+        try {
+            unregisterReceiver(vpnStateReceiver)
+        } catch (_: Exception) { }
+        try {
+            appPrefs.unregisterOnSharedPreferenceChangeListener(prefsChangeListener)
+        } catch (_: Exception) { }
     }
 
     private fun showPinVerification() {
@@ -315,12 +337,10 @@ class MainActivity : AppCompatActivity() {
                 try {
                     startActivity(standard)
                     android.widget.Toast.makeText(this, "请允许忽略电池优化以提升稳定性", android.widget.Toast.LENGTH_LONG).show()
-                    return
+                    // 不要 return；继续尝试厂商入口作为兼容兜底
                 } catch (_: Exception) { /* continue */ }
-            }
-
+                }
             val tried = startFirstResolvedIntent(
-                // 先尝试通用电池页（使用字符串动作避免未公开常量）
                 Intent("android.intent.action.POWER_USAGE_SUMMARY"),
                 Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS),
 
