@@ -148,8 +148,6 @@ class SettingsActivity : AppCompatActivity() {
         // PIN 门禁：设置页不再弹 PIN
         // checkAndGateByPin()
 
-        // 初始化电池优化状态指示
-        updateBatteryButtonState()
     }
 
     private fun checkAndGateByPin() {
