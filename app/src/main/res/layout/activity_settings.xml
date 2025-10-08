@@ -33,12 +33,12 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"/>
 
-    <Button
+    <!-- <Button
         android:id="@+id/btnAutoStart"
         android:text="@string/allow_auto_start"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginTop="8dp"/> -->
 
     <TextView
         android:text="@string/smtp_settings"
@@ -99,11 +99,11 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
 
-    <Switch
+    <!-- <Switch
         android:id="@+id/swAutoStart"
         android:text="@string/auto_start_on_boot"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content"/> -->
 
     <TextView
         android:id="@+id/tvWhitelistTitle"

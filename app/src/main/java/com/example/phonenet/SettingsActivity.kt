@@ -28,7 +28,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etParentEmail: EditText
     private lateinit var rvApps: RecyclerView
     private lateinit var btnOpenVpnSettings: Button
-    private lateinit var btnAutoStart: Button
 
     // SMTP 配置
     private lateinit var etSmtpHost: EditText
@@ -40,8 +39,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etSmtpFrom: EditText
     private lateinit var btnTestSmtp: Button
 
-    // 开机自启（如果你已增加该开关）
-    private lateinit var swAutoStart: android.widget.Switch
 
     private val prefs by lazy { getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
     private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
@@ -69,31 +66,6 @@ class SettingsActivity : AppCompatActivity() {
         btnTestSmtp = findViewById(R.id.btnTestSmtp)
         btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
         btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
-
-        btnAutoStart = findViewById(R.id.btnAutoStart)
-        btnAutoStart.setOnClickListener { requestAutoStartPermission() }
-
-
-
-        // 如存在开机自启控件
-        swAutoStart = findViewById(R.id.swAutoStart)
-        // 预填开机自启状态（默认：已开启）
-        swAutoStart.isChecked = prefs.getBoolean("auto_start_on_boot", true)
-        // 当开关变化时，立即持久化到普通存储与 DPS（兼容未解锁阶段读取）
-        swAutoStart.setOnCheckedChangeListener { _, checked ->
-            try {
-                prefs.edit().putBoolean("auto_start_on_boot", checked).apply()
-                dpsPrefs.edit().putBoolean("auto_start_on_boot", checked).apply()
-            } catch (_: Exception) { }
-            if (checked) {
-                android.widget.Toast.makeText(this, "已开启：开机自动启动", android.widget.Toast.LENGTH_SHORT).show()
-            } else {
-                android.widget.Toast.makeText(this, "已关闭：开机自动启动", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // PIN 门禁
-        checkAndGateByPin()
 
         // 预填家长邮箱
         etParentEmail.setText(prefs.getString("parent_email", ""))
@@ -145,13 +117,8 @@ class SettingsActivity : AppCompatActivity() {
         btnEnableAdmin.setOnClickListener { requestDeviceAdmin() }
         btnSaveEmail.setOnClickListener { saveSettings() }
         btnTestSmtp.setOnClickListener { sendTestEmail() }
-        // PIN 门禁：设置页不再弹 PIN
-        // checkAndGateByPin()
+       
 
-    }
-
-    private fun checkAndGateByPin() {
-        // 设置页不再进行 PIN 验证；仅在 APP 打开时（MainActivity）验证一次
     }
 
     private fun showEnterPinDialog(saved: String) {
@@ -260,7 +227,6 @@ class SettingsActivity : AppCompatActivity() {
             putString("smtp_user", user)
             putString("smtp_pass", pass)
             putString("smtp_from", from)
-            putBoolean("auto_start_on_boot", swAutoStart.isChecked)
         }.apply()
 
         // DPS 存储（未解锁阶段需要的配置）
@@ -276,37 +242,6 @@ class SettingsActivity : AppCompatActivity() {
         }.apply()
     }
 
-    private fun requestAutoStartPermission() {
-        // 尝试跳转到厂商的自启动管理页面
-        val intents = arrayOf(
-            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
-            Intent().setComponent(ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
-            Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
-            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
-            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
-            Intent().setComponent(ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
-            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
-            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
-            Intent().setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
-            Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
-            Intent().setComponent(ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity")),
-            Intent().setComponent(ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")),
-        )
-        for (intent in intents) {
-            try {
-                startActivity(intent)
-                return
-            } catch (e: Exception) {
-                // continue
-            }
-        }
-        // 如果都失败，则打开通用设置
-        try {
-            startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
-        } catch (e: Exception) {
-            android.widget.Toast.makeText(this, "无法自动打开自启动设置，请手动查找", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
 
     private fun sendTestEmail() {
         val to = etParentEmail.text?.toString()?.trim()

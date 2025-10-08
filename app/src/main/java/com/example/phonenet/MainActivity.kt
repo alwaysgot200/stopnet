@@ -2,6 +2,7 @@ package com.example.phonenet
 
 import android.Manifest
 import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
@@ -222,6 +223,27 @@ class MainActivity : AppCompatActivity() {
         btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
     }
 
+    private fun updateAutoStartButtonState() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", true)
+        // This button and its update logic are not fully implemented in the UI.
+        // For now, this function is a placeholder.
+    }
+
+    private fun updateAutoStartButtonState() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", true)
+        // This button and its update logic are not fully implemented in the UI.
+        // For now, this function is a placeholder.
+    }
+
+    private fun updateAutoStartButtonState() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", true)
+        // This button and its update logic are not fully implemented in the UI.
+        // For now, this function is a placeholder.
+    }
+
     private fun updateBatteryButtonState() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             val pm = getSystemService(android.os.PowerManager::class.java)
@@ -233,6 +255,58 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateAutoStartButtonState() {
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false) // 默认关闭
+        if (autoStartEnabled) {
+            btnAutoStart.setBackgroundColor(android.graphics.Color.GREEN)
+            btnAutoStart.text = "自动启动：已启用"
+        } else {
+            btnAutoStart.setBackgroundColor(android.graphics.Color.RED)
+            btnAutoStart.text = "自动启动：已禁用"
+        }
+    }
+
+    private fun requestAutoStartPermission() {
+        // 切换期望的状态并保存
+        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val currentStatus = prefs.getBoolean("auto_start_on_boot", false)
+        prefs.edit().putBoolean("auto_start_on_boot", !currentStatus).apply()
+        updateAutoStartButtonState() // 更新按钮状态
+
+        // 尝试跳转到厂商的自启动管理页面
+        val intents = arrayOf(
+            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
+            Intent().setComponent(ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
+            Intent().setComponent(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
+            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
+            Intent().setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
+            Intent().setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
+            Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
+            Intent().setComponent(ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity")),
+            Intent().setComponent(ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity"))
+        )
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                android.widget.Toast.makeText(this, "请在列表中找到 PhoneNet 并允许自动启动", android.widget.Toast.LENGTH_LONG).show()
+                return
+            } catch (e: Exception) {
+                // continue
+            }
+        }
+        // 如果都失败，则打开通用设置
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+            android.widget.Toast.makeText(this, "无法自动打开自启动设置，请手动查找", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "无法打开设置，请手动操作", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun requestIgnoreBatteryOptimizations() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             val pm = getSystemService(android.os.PowerManager::class.java)
@@ -241,19 +315,49 @@ class MainActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this, "已忽略电池优化", android.widget.Toast.LENGTH_SHORT).show()
                 return
             }
-            try {
-                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+
+            val intents = arrayOf(
+                // 标准
+                Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                     data = android.net.Uri.parse("package:$pkg")
-                }
-                startActivity(intent)
-                android.widget.Toast.makeText(this, getString(R.string.battery_opt_desc), android.widget.Toast.LENGTH_SHORT).show()
-            } catch (_: Exception) {
+                },
+                // 小米
+                Intent("miui.intent.action.OP_AUTO_START").addCategory(Intent.CATEGORY_DEFAULT),
+                Intent().setComponent(android.content.ComponentName("com.miui.securitycenter", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")),
+                // 三星
+                Intent().setComponent(android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
+                // 华为
+                Intent().setComponent(android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
+                // OPPO
+                Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
+                Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
+                Intent().setComponent(android.content.ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
+                // VIVO
+                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
+                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
+                Intent().setComponent(android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
+                // 其他
+                Intent().setComponent(android.content.ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")),
+                Intent().setComponent(android.content.ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
+                Intent().setComponent(android.content.ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity"))
+            )
+
+            for (intent in intents) {
                 try {
-                    startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为\"不要优化\"", android.widget.Toast.LENGTH_LONG).show()
-                } catch (__: Exception) {
-                    android.widget.Toast.makeText(this, "无法打开电池优化设置，请在系统设置中手动查找\"电池优化\"", android.widget.Toast.LENGTH_SHORT).show()
+                    startActivity(intent)
+                    android.widget.Toast.makeText(this, "请在列表中找到 PhoneNet，并允许后台运行或设置为\"无限制\"", android.widget.Toast.LENGTH_LONG).show()
+                    return
+                } catch (_: Exception) {
+                    // continue
                 }
+            }
+
+            // 如果都失败，则打开通用设置
+            try {
+                startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为\"不要优化\"", android.widget.Toast.LENGTH_LONG).show()
+            } catch (__: Exception) {
+                android.widget.Toast.makeText(this, "无法自动打开电池优化设置，请在系统设置中手动查找", android.widget.Toast.LENGTH_SHORT).show()
             }
         } else {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
