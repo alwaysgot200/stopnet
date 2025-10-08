@@ -1,9 +1,11 @@
 package com.example.phonenet
 
 import android.Manifest
-import android.content.Context
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.VpnService
 import android.os.Bundle
 import android.widget.Button
@@ -21,6 +23,14 @@ class MainActivity : AppCompatActivity() {
 
     private var didShowPin = false
     private var isPinDialogShowing = false
+
+    private val vpnStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == FirewallVpnService.ACTION_VPN_STATE_CHANGED) {
+                updateStatus()
+            }
+        }
+    }
 
     companion object {
         private const val PREPARE_VPN_REQ = 1001
@@ -74,6 +84,11 @@ class MainActivity : AppCompatActivity() {
         updateToggleButtonState()
         requestExactAlarmPermissionIfNeeded()
         checkAndRestartServiceIfNeeded()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(vpnStateReceiver)
     }
 
     private fun showPinVerification() {

@@ -15,6 +15,11 @@ import java.nio.ByteBuffer
 
 class FirewallVpnService : VpnService() {
 
+    companion object {
+        const val ACTION_VPN_STATE_CHANGED = "com.example.phonenet.VPN_STATE_CHANGED"
+        const val EXTRA_VPN_STATE = "vpn_state"
+    }
+
     private var vpnInterface: ParcelFileDescriptor? = null
     private var workerThread: Thread? = null
 
@@ -32,10 +37,22 @@ class FirewallVpnService : VpnService() {
             dps.edit().putBoolean("vpn_user_stop", false).apply()
         } catch (_: Exception) { }
 
+        // 发送广播通知 UI 更新
+        val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
+            putExtra(EXTRA_VPN_STATE, true)
+        }
+        sendBroadcast(broadcastIntent)
+
         return START_STICKY
     }
 
     override fun onDestroy() {
+        // 发送广播通知 UI 更新
+        val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
+            putExtra(EXTRA_VPN_STATE, false)
+        }
+        sendBroadcast(broadcastIntent)
+
         super.onDestroy()
         workerThread?.interrupt()
         workerThread = null
