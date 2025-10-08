@@ -19,29 +19,26 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
           packages: |
             platform-tools
             build-tools;34.0.0
             platforms;android-34
-            // 准备签名文件
       - name: Prepare Keystore
         shell: pwsh
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          [System.IO.File]::WriteAllBytes("phonenet.jks", [System.Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
-          // 使用 Gradle Wrapper 构建
+          [System.IO.File]::WriteAllBytes("app/phonenet.jks", [System.Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
       - name: Build Release APK
         shell: cmd
         env:
-          ANDROID_KEYSTORE_PATH: phonenet.jks
+          ANDROID_KEYSTORE_PATH: app/phonenet.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: .\gradlew.bat :app:assembleRelease
-          // 上传构建产物
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
