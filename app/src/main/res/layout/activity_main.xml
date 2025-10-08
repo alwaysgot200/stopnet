@@ -26,8 +26,8 @@
         android:layout_marginTop="12dp"/>
     <Button
         android:id="@+id/btnAutoStart"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_marginTop="12dp"
         android:text="允许自动启动" />
 </LinearLayout>

@@ -39,6 +39,10 @@ android {
         }
         debug {
             minifyEnabled false
+            // 当环境变量存在时，复用 release 的签名（否则自动用默认 debug keystore）
+            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

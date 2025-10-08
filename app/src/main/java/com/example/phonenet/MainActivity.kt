@@ -128,6 +128,7 @@ class MainActivity : AppCompatActivity() {
             checkAndRestartServiceIfNeeded()
         }
         updateStatus()
+        updateStatusSoon() // 首次自动启动路径下也补充延时刷新
     }
 
     private fun attemptStartVpnService() {
@@ -145,6 +146,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             startVpnService()
         }
+        updateStatus()
+        updateStatusSoon() // 首次启动后延迟二次刷新，避免读到旧状态
     }
 
     private fun startVpnService() {
@@ -155,6 +158,7 @@ class MainActivity : AppCompatActivity() {
             startService(serviceIntent)
         }
         updateStatus()
+        updateStatusSoon() // 服务启动后再延时刷新，确保读取到 vpn_running=true
     }
 
     private fun toggleVpn() {
@@ -304,52 +308,73 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            val intents = arrayOf(
-                // 标准
-                Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = android.net.Uri.parse("package:$pkg")
-                },
-                // 小米
+            val standard = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = android.net.Uri.parse("package:$pkg")
+            }
+            if (standard.resolveActivity(packageManager) != null) {
+                try {
+                    startActivity(standard)
+                    android.widget.Toast.makeText(this, "请允许忽略电池优化以提升稳定性", android.widget.Toast.LENGTH_LONG).show()
+                    return
+                } catch (_: Exception) { /* continue */ }
+            }
+
+            val tried = startFirstResolvedIntent(
+                // 先尝试通用电池页（使用字符串动作避免未公开常量）
+                Intent("android.intent.action.POWER_USAGE_SUMMARY"),
+                Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS),
+
+                // VIVO / OriginOS 常见候选
+                Intent().setComponent(android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
+                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
+                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
+                Intent().setComponent(android.content.ComponentName("com.iqoo.powersaving", "com.iqoo.powersaving.PowerSavingManagerActivity")),
+                Intent().setComponent(android.content.ComponentName("com.vivo.settings", "com.vivo.settings.Battery")),
+
+                // 其他厂商入口
                 Intent("miui.intent.action.OP_AUTO_START").addCategory(Intent.CATEGORY_DEFAULT),
                 Intent().setComponent(android.content.ComponentName("com.miui.securitycenter", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity")),
-                // 三星
                 Intent().setComponent(android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
-                // 华为
                 Intent().setComponent(android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity")),
-                // OPPO
                 Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
                 Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")),
                 Intent().setComponent(android.content.ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")),
-                // VIVO
-                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")),
-                Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")),
-                Intent().setComponent(android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")),
-                // 其他
                 Intent().setComponent(android.content.ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")),
                 Intent().setComponent(android.content.ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity")),
                 Intent().setComponent(android.content.ComponentName("com.htc.pitroad", "com.htc.pitroad.landingpage.activity.LandingPageActivity"))
             )
-
-            for (intent in intents) {
-                try {
-                    startActivity(intent)
-                    android.widget.Toast.makeText(this, "请在列表中找到 PhoneNet，并允许后台运行或设置为\"无限制\"", android.widget.Toast.LENGTH_LONG).show()
-                    return
-                } catch (_: Exception) {
-                    // continue
-                }
+            if (tried) {
+                android.widget.Toast.makeText(this, "请在电池/后台管理中为 PhoneNet 设为“无限制”或“允许后台运行”", android.widget.Toast.LENGTH_LONG).show()
+                return
             }
 
-            // 如果都失败，则打开通用设置
-            try {
-                startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                android.widget.Toast.makeText(this, "请在电池优化列表中将 PhoneNet 设置为\"不要优化\"", android.widget.Toast.LENGTH_LONG).show()
-            } catch (__: Exception) {
-                android.widget.Toast.makeText(this, "无法自动打开电池优化设置，请在系统设置中手动查找", android.widget.Toast.LENGTH_SHORT).show()
+            if (startFirstResolvedIntent(
+                    Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+                    Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = android.net.Uri.parse("package:$pkg")
+                    }
+                )
+            ) {
+                android.widget.Toast.makeText(this, "请在电池优化或应用详情中将 PhoneNet 设置为“不要优化/无限制”", android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                android.widget.Toast.makeText(this, "无法自动打开电池相关设置，请在系统设置中手动查找", android.widget.Toast.LENGTH_SHORT).show()
             }
         } else {
             android.widget.Toast.makeText(this, "当前系统版本无需此设置", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // 只启动能解析的 Intent（避免直接抛异常）
+    private fun startFirstResolvedIntent(vararg intents: Intent): Boolean {
+        for (intent in intents) {
+            if (intent.resolveActivity(packageManager) != null) {
+                try {
+                    startActivity(intent)
+                    return true
+                } catch (_: Exception) { /* continue */ }
+            }
+        }
+        return false
     }
 
     private fun checkAndRestartServiceIfNeeded() {
@@ -491,5 +516,11 @@ class MainActivity : AppCompatActivity() {
         input1.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.showSoftInput(input1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }    
+    // 延迟再次刷新状态，避免服务写入偏晚导致首次 UI 不更新
+    private fun updateStatusSoon() {
+    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 400)
+    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 1200)
     }
 }
+
