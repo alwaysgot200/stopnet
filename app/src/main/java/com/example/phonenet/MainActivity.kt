@@ -213,7 +213,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            updateToggleButtonState()
+            updateStatus()
         }
     }
 
@@ -243,18 +243,7 @@ class MainActivity : AppCompatActivity() {
         btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
     }
 
-    private fun updateAutoStartButtonState() {
-        val sharedPreferences = getSharedPreferences("settings", Context.MODE_PRIVATE)
-        val autoStartEnabled = sharedPreferences.getBoolean("auto_start_enabled", false)
 
-        if (autoStartEnabled) {
-            btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorGreen))
-            btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        } else {
-            btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorRed))
-            btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        }
-    }
 
     private fun updateBatteryButtonState() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -491,5 +480,19 @@ class MainActivity : AppCompatActivity() {
         input1.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.showSoftInput(input1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+}
+
+
+private fun updateAutoStartButtonState() {
+    val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+    val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false)
+
+    if (autoStartEnabled) {
+        btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorGreen))
+        btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+    } else {
+        btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorRed))
+        btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 }
