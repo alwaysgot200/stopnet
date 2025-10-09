@@ -39,7 +39,8 @@ class BootReceiver : BroadcastReceiver() {
         val prefs = dpsCtx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
         val running = prefs.getBoolean("vpn_running", false)
-        if (!enabled || running) return
+        val userStopped = prefs.getBoolean("vpn_user_stop", false)
+        if (!enabled || running || userStopped) return
 
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
@@ -56,7 +57,8 @@ class BootReceiver : BroadcastReceiver() {
         val prefs = context.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
         val running = prefs.getBoolean("vpn_running", false)
-        if (!enabled || running) return
+        val userStopped = prefs.getBoolean("vpn_user_stop", false)
+        if (!enabled || running || userStopped) return
 
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {

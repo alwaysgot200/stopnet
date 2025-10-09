@@ -4,10 +4,6 @@
     android:padding="16dp"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-
-    <!-- 已移除：启用设备管理权限按钮 -->
-    <!-- 已移除：保存按钮 -->
-
     <EditText
         android:id="@+id/etParentEmail"
         android:hint="@string/parent_email"
