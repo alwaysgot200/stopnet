@@ -41,7 +41,6 @@ class BootReceiver : BroadcastReceiver() {
         val running = prefs.getBoolean("vpn_running", false)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
         if (!enabled || running || userStopped) return
-
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
             val serviceIntent = Intent(context, FirewallVpnService::class.java)
@@ -59,7 +58,6 @@ class BootReceiver : BroadcastReceiver() {
         val running = prefs.getBoolean("vpn_running", false)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
         if (!enabled || running || userStopped) return
-
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
             val serviceIntent = Intent(context, FirewallVpnService::class.java)

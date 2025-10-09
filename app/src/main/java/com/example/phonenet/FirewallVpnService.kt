@@ -42,6 +42,29 @@ class FirewallVpnService : VpnService() {
             }
             sendBroadcast(broadcastIntent)
 
+            // 新增：取消所有已安排的重启闹钟与 Job，防止服务被再次拉起
+            try {
+                val am = getSystemService(android.app.AlarmManager::class.java)
+                val restart = Intent("com.example.phonenet.ACTION_RESTART_VPN").apply { `package` = packageName }
+                val flagsPi = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
+
+                // 取消 onDestroy 安排的 1001，以及批量安排的 1010..1014
+                val ids = intArrayOf(1001, 1010, 1011, 1012, 1013, 1014)
+                ids.forEach { id ->
+                    try {
+                        val pi = android.app.PendingIntent.getBroadcast(this, id, restart, flagsPi)
+                        am?.cancel(pi)
+                    } catch (_: Exception) { }
+                }
+
+                // 取消保活 Job（2001）
+                try {
+                    val js = getSystemService(android.content.Context.JOB_SCHEDULER_SERVICE) as android.app.job.JobScheduler
+                    js.cancel(2001)
+                } catch (_: Exception) { }
+            } catch (_: Exception) { }
+
             try { workerThread?.interrupt() } catch (_: Exception) { }
             workerThread = null
             try { vpnInterface?.close() } catch (_: Exception) { }
