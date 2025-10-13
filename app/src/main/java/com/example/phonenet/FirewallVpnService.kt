@@ -38,6 +38,7 @@ class FirewallVpnService : VpnService() {
             } catch (_: Exception) { }
 
             val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
+                setPackage(packageName)
                 putExtra(EXTRA_VPN_STATE, false)
             }
             sendBroadcast(broadcastIntent)
@@ -71,7 +72,12 @@ class FirewallVpnService : VpnService() {
             workerThread = null
             try { vpnInterface?.close() } catch (_: Exception) { }
             vpnInterface = null
-            stopForeground(true)
+            // 替换弃用 API
+            if (android.os.Build.VERSION.SDK_INT >= 24) {
+                stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
+            } else {
+                stopForeground(true)
+            }
             stopSelf()
             return START_NOT_STICKY
         }
@@ -90,6 +96,7 @@ class FirewallVpnService : VpnService() {
         } catch (_: Exception) { }
 
         val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
+            setPackage(packageName)
             putExtra(EXTRA_VPN_STATE, true)
         }
         sendBroadcast(broadcastIntent)
@@ -102,6 +109,7 @@ class FirewallVpnService : VpnService() {
     override fun onDestroy() {
         // 发送广播通知 UI 更新
         val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
+            setPackage(packageName)
             putExtra(EXTRA_VPN_STATE, false)
         }
         sendBroadcast(broadcastIntent)
@@ -113,7 +121,12 @@ class FirewallVpnService : VpnService() {
         workerThread = null
         vpnInterface?.close()
         vpnInterface = null
-        stopForeground(true)
+        // 替换弃用 API
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(true)
+        }
 
         var userStopped = false
         try {
@@ -314,7 +327,15 @@ class FirewallVpnService : VpnService() {
             .setShowWhen(false)
             .build()
 
-        startForeground(1001, notification)
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                1001,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(1001, notification)
+        }
     }
 
     override fun onRevoke() {

@@ -4,17 +4,17 @@
     android:padding="16dp"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <EditText
-        android:id="@+id/etParentEmail"
-        android:hint="@string/parent_email"
-        android:inputType="textEmailAddress"
+    <Button
+        android:id="@+id/btnOpenVpnSettings"
+        android:text="打开系统 VPN 设置（建议开启始终开启与锁定）"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp" />
 
-    <Button
-        android:id="@+id/btnOpenVpnSettings"
-        android:text="打开系统 VPN 设置（建议开启始终开启与锁定）"
+    <EditText
+        android:id="@+id/etParentEmail"
+        android:hint="@string/parent_email"
+        android:inputType="textEmailAddress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp" />

@@ -15,47 +15,61 @@ android {
         versionName "1.0"
     }
 
-    signingConfigs {
-        release {
-            // 仅在存在 ANDROID_KEYSTORE_PATH 时设置签名文件与凭据
-            def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
-            if (ksPath) {
-                // 改为从项目根目录解析路径，避免相对 app/ 目录导致找不到 keystore
-                storeFile rootProject.file(ksPath)
-                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+    // 读取签名配置：环境变量优先，gradle.properties 次之，最后回退到 keytool/signing.properties
+    def signingProps = new Properties()
+    def signingPropsFile = rootProject.file("keytool/signing.properties")
+    if (signingPropsFile.exists()) {
+        signingProps.load(signingPropsFile.newInputStream())
+    }
+
+    // 原 ksPath/ksPass/keyAlias/keyPass 改名，避免与 DSL 属性/方法冲突
+    def signingStorePath   = System.getenv("ANDROID_KEYSTORE_PATH")
+            ?: (project.findProperty("ANDROID_KEYSTORE_PATH") ?: signingProps.getProperty("storeFile")
+            ?: new File(rootProject.projectDir, "keytool/phonenet.jks").absolutePath)
+    def signingStorePassword   = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            ?: (project.findProperty("ANDROID_KEYSTORE_PASSWORD") ?: signingProps.getProperty("storePassword"))
+    def signingKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            ?: (project.findProperty("ANDROID_KEY_ALIAS") ?: signingProps.getProperty("keyAlias"))
+    def signingKeyPassword  = System.getenv("ANDROID_KEY_PASSWORD")
+            ?: (project.findProperty("ANDROID_KEY_PASSWORD") ?: signingProps.getProperty("keyPassword"))
+
+    // 只有在全部值齐全时才创建 release 签名配置
+    if (signingStorePath && signingStorePassword && signingKeyAlias && signingKeyPassword) {
+        signingConfigs {
+            release {
+                storeFile file(signingStorePath)
+                storePassword signingStorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
+                v1SigningEnabled true
+                v2SigningEnabled true
             }
         }
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // 仅在存在 ANDROID_KEYSTORE_PATH 时应用签名配置
-            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
+            // 仅在签名配置完整时应用
+            if (signingStorePath && signingStorePassword && signingKeyAlias && signingKeyPassword) {
                 signingConfig signingConfigs.release
             }
         }
         debug {
             minifyEnabled false
-            // 当环境变量存在时，复用 release 的签名（否则自动用默认 debug keystore）
-            if (System.getenv("ANDROID_KEYSTORE_PATH")) {
-                signingConfig signingConfigs.release
-            }
+            // 不指定签名，使用 Android 默认 debug keystore
         }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
         jvmTarget = "17"
     }
     packaging {
         resources {
-            // 二选一保留一个，避免报错
             pickFirsts += [
                 "META-INF/NOTICE.md",
                 "META-INF/LICENSE.md",
@@ -77,4 +91,112 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
     implementation 'com.sun.mail:android-mail:1.6.7'
     implementation 'com.sun.mail:android-activation:1.6.7'
+}
+
+// Windows: 指定 SDK 工具与 AVD/包名（可通过 -Pxxx 覆盖）
+def emulatorExe = (project.findProperty("emulatorExe") ?: "D:\\programfiles\\Android\\SDK\\emulator\\emulator.exe").toString()
+def adbExe      = (project.findProperty("adbExe")      ?: "D:\\programfiles\\Android\\SDK\\platform-tools\\adb.exe").toString()
+def avdName     = (project.findProperty("avdName")     ?: "Pixel_6_API_34").toString()
+def appId       = (project.findProperty("appId")       ?: "com.example.phonenet").toString()
+
+// 启动模拟器（若无已连接设备）
+tasks.register("startEmulator") {
+    doLast {
+        def out = new ByteArrayOutputStream()
+        exec {
+            commandLine(adbExe, "devices")
+            standardOutput = out
+            ignoreExitValue = true
+        }
+        def hasDevice = out.toString().readLines().any { it.trim().endsWith("\tdevice") }
+        if (hasDevice) {
+            println("Device already connected; skip emulator start.")
+        } else {
+            println("No device detected; starting emulator: ${avdName}")
+            // 后台启动避免阻塞 Gradle
+            exec {
+                commandLine(
+                    "cmd", "/c", "start", "", "\"${emulatorExe}\"",
+                    "-avd", avdName,
+                    "-netdelay", "none",
+                    "-netspeed", "full",
+                    "-no-snapshot-load",
+                    "-no-boot-anim"
+                )
+            }
+        }
+    }
+}
+
+// 等待设备启动完成（sys.boot_completed=1）
+tasks.register("waitForDevice") {
+    dependsOn("startEmulator")
+    doLast {
+        exec { commandLine(adbExe, "start-server"); ignoreExitValue = true }
+
+        def timeoutSec = (project.findProperty("deviceWaitTimeoutSec") ?: "240").toInteger()
+        def elapsed = 0
+
+        while (true) {
+            def devicesOut = new ByteArrayOutputStream()
+            exec {
+                commandLine(adbExe, "devices")
+                standardOutput = devicesOut
+                ignoreExitValue = true
+            }
+            def connected = devicesOut.toString().readLines().any { it.trim().endsWith("\tdevice") }
+
+            if (connected) {
+                def bootOut = new ByteArrayOutputStream()
+                exec {
+                    commandLine(adbExe, "shell", "getprop", "sys.boot_completed")
+                    standardOutput = bootOut
+                    ignoreExitValue = true
+                }
+                if (bootOut.toString().trim() == "1") {
+                    println("Emulator boot completed and device is ready.")
+                    break
+                }
+            }
+
+            Thread.sleep(1000)
+            elapsed++
+            if (elapsed >= timeoutSec) {
+                throw new GradleException("Emulator did not boot within ${timeoutSec}s")
+            }
+        }
+
+        // 打印设备列表以确认连接
+        exec { commandLine(adbExe, "devices"); ignoreExitValue = true }
+    }
+}
+
+// 若已安装旧版 APK 则卸载（未安装则跳过）
+tasks.register("uninstallOldApk") {
+    dependsOn("waitForDevice")
+    doLast {
+        def pmOut = new ByteArrayOutputStream()
+        exec {
+            commandLine(adbExe, "shell", "pm", "list", "packages", appId)
+            standardOutput = pmOut
+            ignoreExitValue = true
+        }
+        def installed = pmOut.toString().readLines().any { it.trim() == "package:${appId}" }
+        if (installed) {
+            println("Uninstalling ${appId} ...")
+            exec {
+                commandLine(adbExe, "uninstall", appId)
+                ignoreExitValue = true
+            }
+        } else {
+            println("${appId} not installed; skip uninstall.")
+        }
+    }
+}
+
+// 让 installDebug/installRelease 在执行前依赖设备就绪与卸载旧版
+afterEvaluate {
+    tasks.matching { it.name in ["installDebug", "installRelease"] }.all {
+        dependsOn("uninstallOldApk")
+    }
 }

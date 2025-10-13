@@ -108,7 +108,12 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         // 注册广播（避免与 onCreate/onResume 重复注册）
         val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
-        registerReceiver(vpnStateReceiver, filter)
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            vpnStateReceiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         // 注册全局状态监听
         VpnStateStore.addListener(onVpnStateChanged)
         // 启动时同步一次
