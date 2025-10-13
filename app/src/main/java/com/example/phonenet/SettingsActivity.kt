@@ -102,7 +102,8 @@ class SettingsActivity : AppCompatActivity() {
             val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val admin = ComponentName(this, MyDeviceAdminReceiver::class.java)
             if (dpm.isDeviceOwnerApp(packageName)) {
-                dpm.setAlwaysOnVpnPackage(admin, packageName, true)
+                // 仅启用“始终开启”，不启用锁定模式（lockdown=false）
+                dpm.setAlwaysOnVpnPackage(admin, packageName, false)
                 dpm.addUserRestriction(admin, android.os.UserManager.DISALLOW_CONFIG_VPN)
                 dpm.setUninstallBlocked(admin, packageName, true)
                 dpm.setLockTaskPackages(admin, arrayOf(packageName))
@@ -227,8 +228,39 @@ class SettingsActivity : AppCompatActivity() {
     // 勾选变化后立即持久化白名单（供适配器调用；存在即可）
     fun persistWhitelist() {
         val selected = adapter.getSelectedPackages().toMutableSet()
+        // 启动时确保本应用在白名单中（避免自身网络被拦截）
+        try {
+            val existing = prefs.getStringSet("whitelist_packages", emptySet()) ?: emptySet()
+            if (!existing.contains(packageName)) {
+                val updated = existing.toMutableSet().apply { add(packageName) }
+                prefs.edit().putStringSet("whitelist_packages", updated).apply()
+                dpsPrefs.edit().putStringSet("whitelist_packages", updated).apply()
+                // 通知 VPN 重载一次，使新增白名单即时生效
+                val intent = Intent(this, FirewallVpnService::class.java).apply {
+                    action = FirewallVpnService.ACTION_RELOAD_WHITELIST
+                }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+            }
+        } catch (_: Exception) { }
+        // 将本应用加入白名单，避免自身网络被拦截
+        selected.add(packageName)
         prefs.edit().putStringSet("whitelist_packages", selected).apply()
         dpsPrefs.edit().putStringSet("whitelist_packages", selected).apply()
+        // 保存后重载 VPN 以即时生效
+        try {
+            val intent = Intent(this, FirewallVpnService::class.java).apply {
+                action = FirewallVpnService.ACTION_RELOAD_WHITELIST
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (_: Exception) { }
     }
 
     // 统一持久化 SMTP 配置（正常存储 + DPS 存储）
@@ -273,7 +305,7 @@ class SettingsActivity : AppCompatActivity() {
 
 data class AppItem(val label: String, val packageName: String, var checked: Boolean)
 
-class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAdapter.VH>() {
+class AppAdapter(private val items: List<AppItem>, private val onSelectionChanged: () -> Unit) : RecyclerView.Adapter<AppAdapter.VH>() {
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val cb: CheckBox = view.findViewById(android.R.id.checkbox)
         val tv: TextView = view.findViewById(android.R.id.text1)
@@ -294,11 +326,23 @@ class AppAdapter(private val items: List<AppItem>) : RecyclerView.Adapter<AppAda
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
+        val ctx = holder.itemView.context
         holder.tv.text = item.label
         holder.cb.setOnCheckedChangeListener(null)
+
+        // 本应用固定允许：禁用复选框防误操作
+        if (item.packageName == ctx.packageName) {
+            item.checked = true
+            holder.cb.isChecked = true
+            holder.cb.isEnabled = false
+            return
+        }
+
+        holder.cb.isEnabled = true
         holder.cb.isChecked = item.checked
         holder.cb.setOnCheckedChangeListener { _, checked ->
             item.checked = checked
+            onSelectionChanged.invoke()
         }
     }
 

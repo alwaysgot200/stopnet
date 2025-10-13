@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fillViewport="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
     <Button
         android:id="@+id/btnOpenVpnSettings"
-        android:text="打开系统 VPN 设置（建议开启始终开启与锁定）"
+        android:text="打开系统 VPN 设置（建议启用始终开启，不启用锁定）"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp" />
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
     <EditText
         android:id="@+id/etParentEmail"
@@ -90,7 +94,8 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvApps"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1" />
+        android:layout_height="wrap_content"
+        android:nestedScrollingEnabled="false"
+        android:layout_marginTop="8dp" />
 </LinearLayout>
+</androidx.core.widget.NestedScrollView>

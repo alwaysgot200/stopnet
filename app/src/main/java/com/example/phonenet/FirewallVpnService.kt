@@ -19,6 +19,8 @@ class FirewallVpnService : VpnService() {
         const val ACTION_VPN_STATE_CHANGED = "com.example.phonenet.VPN_STATE_CHANGED"
         const val EXTRA_VPN_STATE = "vpn_state"
         const val ACTION_STOP_VPN = "com.example.phonenet.ACTION_STOP_VPN"
+        // 新增：白名单重载
+        const val ACTION_RELOAD_WHITELIST = "com.example.phonenet.ACTION_RELOAD_WHITELIST"
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -80,6 +82,14 @@ class FirewallVpnService : VpnService() {
             }
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        // 新增：白名单重载时关闭旧隧道以便重建
+        if (intent?.action == ACTION_RELOAD_WHITELIST) {
+            try { workerThread?.interrupt() } catch (_: Exception) { }
+            workerThread = null
+            try { vpnInterface?.close() } catch (_: Exception) { }
+            vpnInterface = null
         }
 
         startForegroundNotification()
