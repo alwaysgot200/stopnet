@@ -1,0 +1,79 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "StartEmulator",
+      "type": "shell",
+      "windows": {
+        "command": "start \"\" \"${config:phonenet.emulatorPath}\" -avd ${config:phonenet.androidAvdName} -no-snapshot-load -no-snapshot-save -netdelay none -netspeed full && \"${config:phonenet.adbPath}\" wait-for-device"
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "never" }
+    },
+    {
+      "label": "UninstallDebugApp",
+      "type": "shell",
+      "windows": {
+        "command": "\"${config:phonenet.adbPath}\" uninstall ${config:phonenet.packageName} || echo Not installed"
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always" }
+    },
+    // 修正签名任务到工作区路径
+    {
+      "label": "AppSignKey",
+      "type": "shell",
+      "command": "keytool -genkey -v -keystore \"${workspaceFolder}\\phonenet.jks\" -keyalg RSA -keysize 2048 -validity 10000 -alias phonenet",
+      "windows": {
+        "command": "del \"${workspaceFolder}\\phonenet.jks\" 2>nul & keytool -genkey -v -keystore \"${workspaceFolder}\\phonenet.jks\" -keyalg RSA -keysize 2048 -validity 10000 -alias phonenet"
+      },
+      "group": "test",
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "CleanApp",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew clean",
+      "windows": { "command": "${workspaceFolder}\\gradlew.bat clean" },
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "BuildDebugApp",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew :app:assembleDebug",
+      "windows": {
+        "command": "${workspaceFolder}\\gradlew.bat :app:assembleDebug"
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "installDebugAndLogcat",
+      "type": "shell",
+      "command": "${workspaceFolder}/gradlew :app:installDebugAndLogcat",
+      "windows": {
+        "command": "${workspaceFolder}\\gradlew.bat :app:installDebugAndLogcat"
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "dependsOn": ["StartEmulator", "BuildDebugApp"],
+      "dependsOrder": "sequence",
+      "presentation": { "reveal": "always" }
+    },
+    // 运行任务：依赖安装，确保 Activity 启动前已安装 APK
+    {
+      "label": "RunDebugAppWithEmulator",
+      "type": "shell",
+      "windows": {
+        "command": "\"${config:phonenet.adbPath}\" shell am start -n com.example.phonenet/com.example.phonenet.MainActivity"
+      },
+      "dependsOn": ["StartEmulator", "installDebugAndLogcat"],
+      "dependsOrder": "sequence",
+      "presentation": { "reveal": "always" }
+    }
+  ]
+}

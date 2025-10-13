@@ -1,0 +1,33 @@
+[
+  {
+    "key": "F6",
+    "command": "workbench.action.tasks.runTask",
+    "args": "installDebugAndLogcat"
+  },
+  {
+    "key": "F7",
+    "command": "workbench.action.tasks.runTask",
+    "args": "BuildDebugApp"
+  },
+  {
+    "key": "F8",
+    "command": "workbench.action.tasks.runTask",
+    "args": "CleanApp"
+  },
+  {
+    "key": "F9",
+    "command": "workbench.action.tasks.runTask",
+    "args": "AppSignKey"
+  },
+  {
+    "key": "F5",
+    "command": "workbench.action.tasks.runTask",
+    "args": "RunDebugAppWithEmulator"
+  },
+  // 可选：快捷卸载，处理签名变化
+  {
+    "key": "F10",
+    "command": "workbench.action.tasks.runTask",
+    "args": "UninstallDebugApp"
+  }
+]

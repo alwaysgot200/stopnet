@@ -21,7 +21,7 @@ local.properties
 out/
 
 # VS Code (optional, avoid per-developer settings)
-.vscode/
+#.vscode/
 
 # NDK / CMake
 .cxx/
@@ -36,6 +36,6 @@ captures/
 *.aab
 
 # Keystore files (sensitive)
-**/*.jks
-**/*.keystore
+*.jks
+*.keystore
 /keytool

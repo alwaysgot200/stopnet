@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // 移除与 Android 项目无关的 Kotlin 直连调试项（僵尸配置）
+    // 保留 Android 调试配置并对齐预任务
+    {
+      "type": "android",
+      "request": "launch",
+      "name": "Android launch",
+      "appSrcRoot": "${workspaceFolder}/app/src/main",
+      "apkFile": "${workspaceFolder}/app/build/outputs/apk/debug/app-debug.apk",
+      "adbPort": 5037,
+      "preLaunchTask": "installDebugAndLogcat"
+    },
+    {
+      "type": "android",
+      "request": "attach",
+      "name": "Android attach",
+      "appSrcRoot": "${workspaceFolder}/app/src/main",
+      "adbPort": 5037,
+      "processId": "${command:PickAndroidProcess}"
+    }
+  ]
+}
