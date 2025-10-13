@@ -1,31 +1,3 @@
 {
-  "java.jdt.ls.java.home": "D:\\programfiles\\Java\\jdk-17",
-  "terminal.integrated.defaultProfile.windows": "Command Prompt",
-  "terminal.integrated.profiles.windows": {
-    "Command Prompt": {
-      "path": "C:\\Windows\\System32\\cmd.exe",
-      "args": []
-    }
-  },
-  "files.associations": {
-    "*.kts": "kotlin",
-    "*.kt": "kotlin"
-  },
-  "yaml.schemas": {
-    "https://json.schemastore.org/github-workflow": [
-      "${workspaceFolder}/.github/workflows/*.yml",
-      "${workspaceFolder}/.github/workflows/*.yaml"
-    ]
-  },
-  // 如网络受限导致 schema 加载报错，可临时禁用：
-  // "yaml.schemaStore.enable": false,
-  // 配置 Android SDK 与模拟器
-  "phonenet.androidAvdName": "Pixel_6_API_34", // 修改为你本机的 AVD 名称
-  "phonenet.emulatorPath": "%ANDROID_SDK_ROOT%\\emulator\\emulator.exe",
-  "phonenet.adbPath": "%ANDROID_SDK_ROOT%\\platform-tools\\adb.exe",
-  // 新增统一键，避免多处硬编码
-  "phonenet.packageName": "com.example.phonenet",
-  "phonenet.mainActivity": "com.example.phonenet.MainActivity"
-  // Or to suppress YAML validation warnings globally (not recommended):
-  // "yaml.validate": false
+  "terminal.integrated.defaultProfile.windows": "Command Prompt"
 }
