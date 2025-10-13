@@ -41,6 +41,8 @@ class FirewallVpnService : VpnService() {
                 putExtra(EXTRA_VPN_STATE, false)
             }
             sendBroadcast(broadcastIntent)
+            // 同步内存态
+            VpnStateStore.set(false)
 
             // 新增：取消所有已安排的重启闹钟与 Job，防止服务被再次拉起
             try {
@@ -91,6 +93,8 @@ class FirewallVpnService : VpnService() {
             putExtra(EXTRA_VPN_STATE, true)
         }
         sendBroadcast(broadcastIntent)
+        // 同步内存态
+        VpnStateStore.set(true)
 
         return START_STICKY
     }
@@ -101,6 +105,8 @@ class FirewallVpnService : VpnService() {
             putExtra(EXTRA_VPN_STATE, false)
         }
         sendBroadcast(broadcastIntent)
+        // 同步内存态
+        VpnStateStore.set(false)
 
         super.onDestroy()
         workerThread?.interrupt()

@@ -33,10 +33,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    // 全局状态监听器：收到变更直接刷新 UI
+    private val onVpnStateChanged: (Boolean) -> Unit = { state ->
+        updateStatus(state)
+    }
+
+    // 仅用于接收服务广播并同步全局状态（主来源仍为服务侧的 set）
     private val vpnStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == FirewallVpnService.ACTION_VPN_STATE_CHANGED) {
                 val state = intent.getBooleanExtra(FirewallVpnService.EXTRA_VPN_STATE, false)
+                VpnStateStore.set(state)
                 updateStatus(state)
             }
         }
@@ -61,13 +68,8 @@ class MainActivity : AppCompatActivity() {
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
         btnAutoStart.setOnClickListener { requestAutoStartPermission() }
 
-        // 注册服务状态广播
-        val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
-        registerReceiver(vpnStateReceiver, filter)
-
-        // 监听 vpn_running 变化
+        // 统一用 app 级偏好，仅用于回退读取
         appPrefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        appPrefs.registerOnSharedPreferenceChangeListener(prefsChangeListener)
 
         updateBatteryButtonState()
         updateStatus()
@@ -85,9 +87,13 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
+            // 预设为“运行中”，由服务广播或写入统一纠正
+            VpnStateStore.set(true)
             updateStatus(true)
-            updateStatusSoon()
         }
+        updateStatus()
+        // 移除延迟刷新，避免回退覆盖
+        updateStatusSoon()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -98,14 +104,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // 注册广播（避免与 onCreate/onResume 重复注册）
+        val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
+        registerReceiver(vpnStateReceiver, filter)
+        // 注册全局状态监听
+        VpnStateStore.addListener(onVpnStateChanged)
+        // 启动时同步一次
+        updateStatus()
+    }
+
+    override fun onStop() {
+        // 注销监听，避免重复回调与内存泄漏
+        try { unregisterReceiver(vpnStateReceiver) } catch (_: Exception) { }
+        VpnStateStore.removeListener(onVpnStateChanged)
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
+        // 移除重复 registerReceiver，保留轻量刷新
         updateStatus()
         updateAutoStartButtonState()
         updateBatteryButtonState()
-
-        val filter = IntentFilter(FirewallVpnService.ACTION_VPN_STATE_CHANGED)
-        registerReceiver(vpnStateReceiver, filter)
     }
 
     override fun onDestroy() {
@@ -190,25 +212,30 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(serviceIntent)
         }
+        VpnStateStore.set(true)
         updateStatus(true)
-        updateStatusSoon()
+        // 移除延迟刷新
     }
 
     private fun toggleVpn() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
-        val running = prefs.getBoolean("vpn_running", false)
-        val savedPin = prefs.getString("pin", "") ?: ""
+        // 优先使用全局内存态，其次回退到偏好
+        val current = VpnStateStore.current() ?: run {
+            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val dps = createDeviceProtectedStorageContext()
+                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            p1.getBoolean("vpn_running", false) || dps.getBoolean("vpn_running", false)
+        }
+        val savedPin = appPrefs.getString("pin", "") ?: ""
 
-        // 未验证且存在 PIN 时先弹一次
         if (!didShowPin && savedPin.isNotEmpty()) {
             showEnterPinDialog(savedPin) {
                 didShowPin = true
-                if (running) stopVpn() else startVpn()
+                if (current) stopVpn() else startVpn()
             }
             return
         }
 
-        if (running) stopVpn() else startVpn()
+        if (current) stopVpn() else startVpn()
     }
 
     private fun startVpn() {
@@ -250,9 +277,11 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
+            // 预先设置运行中，防止 UI 回退
+            VpnStateStore.set(true)
             updateStatus(true)
-            updateStatusSoon()
         }
+        // 移除延迟刷新
     }
 
     private fun stopVpn() {
@@ -267,8 +296,10 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) { }
 
         requestStopVpn()
+        // 立即更新内存态与 UI 为未运行
+        VpnStateStore.set(false)
         updateStatus(false)
-        updateStatusSoon()
+        // 移除延迟刷新
     }
 
     private fun requestStopVpn() {
@@ -285,7 +316,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateStatus(running: Boolean? = null) {
-        val isRunning = running ?: run {
+        val isRunning = running ?: VpnStateStore.current() ?: run {
             val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
             val dps = createDeviceProtectedStorageContext()
                 .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
@@ -564,7 +595,7 @@ class MainActivity : AppCompatActivity() {
         imm.showSoftInput(input1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
-    // 延迟再次刷新状态，避免服务写入偏晚导致首次 UI 不更新
+    // 删除延迟刷新方法，消除 UI 回退覆盖
     private fun updateStatusSoon() {
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 400)
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ updateStatus() }, 1200)
