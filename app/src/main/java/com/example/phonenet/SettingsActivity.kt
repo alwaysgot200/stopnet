@@ -227,18 +227,15 @@ class SettingsActivity : AppCompatActivity() {
 
     // 勾选变化后立即持久化白名单（供适配器调用；存在即可）
     fun persistWhitelist() {
-        // 计算最终白名单：以用户勾选为准，并强制包含本应用包名，避免自拦截
-        val selected = adapter.getSelectedPackages().toMutableSet().apply {
-            add(packageName)
-        }
-
-        // 同步持久化，确保服务读取到的是最新值
-        val ok1 = prefs.edit().putStringSet("whitelist_packages", selected).commit()
-        val ok2 = dpsPrefs.edit().putStringSet("whitelist_packages", selected).commit()
-
-        // 仅在写入成功后触发一次重载，避免竞态
-        if (ok1 && ok2) {
-            try {
+        val selected = adapter.getSelectedPackages().toMutableSet()
+        // 启动时确保本应用在白名单中（避免自身网络被拦截）
+        try {
+            val existing = prefs.getStringSet("whitelist_packages", emptySet()) ?: emptySet()
+            if (!existing.contains(packageName)) {
+                val updated = existing.toMutableSet().apply { add(packageName) }
+                prefs.edit().putStringSet("whitelist_packages", updated).apply()
+                dpsPrefs.edit().putStringSet("whitelist_packages", updated).apply()
+                // 通知 VPN 重载一次，使新增白名单即时生效
                 val intent = Intent(this, FirewallVpnService::class.java).apply {
                     action = FirewallVpnService.ACTION_RELOAD_WHITELIST
                 }
@@ -247,11 +244,23 @@ class SettingsActivity : AppCompatActivity() {
                 } else {
                     startService(intent)
                 }
-            } catch (_: Exception) { }
-        } else {
-            // 写入失败的容错：提示或记录（保持静默以避免打扰）
-            // 可按需添加日志或 Toast
-        }
+            }
+        } catch (_: Exception) { }
+        // 将本应用加入白名单，避免自身网络被拦截
+        selected.add(packageName)
+        prefs.edit().putStringSet("whitelist_packages", selected).apply()
+        dpsPrefs.edit().putStringSet("whitelist_packages", selected).apply()
+        // 保存后重载 VPN 以即时生效
+        try {
+            val intent = Intent(this, FirewallVpnService::class.java).apply {
+                action = FirewallVpnService.ACTION_RELOAD_WHITELIST
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (_: Exception) { }
     }
 
     // 统一持久化 SMTP 配置（正常存储 + DPS 存储）

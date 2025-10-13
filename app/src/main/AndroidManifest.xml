@@ -62,8 +62,7 @@
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="dataSync"
             android:exported="false"
-            android:stopWithTask="false"
-            android:process=":vpn">
+            android:stopWithTask="false">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
