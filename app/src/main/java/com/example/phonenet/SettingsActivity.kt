@@ -113,7 +113,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 列表与白名单
-        adapter = AppAdapter(appItems)
+        adapter = AppAdapter(appItems) { persistWhitelist() }
         rvApps.layoutManager = LinearLayoutManager(this)
         rvApps.adapter = adapter
         loadLaunchableApps()

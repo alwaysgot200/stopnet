@@ -64,6 +64,7 @@ android {
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -199,4 +200,76 @@ afterEvaluate {
     tasks.matching { it.name in ["installDebug", "installRelease"] }.all {
         dependsOn("uninstallOldApk")
     }
+}
+
+// 在 plugins 与 android 之间或文件末尾添加 Kotlin Toolchain
+kotlin {
+    // 统一使用 JDK 17 编译 Kotlin
+    jvmToolchain(17)
+}
+
+// 运行：gradlew.bat :app:installDebugAndLogcat
+tasks.register('installDebugAndLogcat') {
+    dependsOn 'installDebug'
+
+    doLast {
+        // 清空旧日志
+        exec { commandLine adbExe, 'logcat', '-c' }
+
+        // 启动应用（按需修改为你的入口 Activity）
+        exec { commandLine adbExe, 'shell', 'am', 'start', '-n', "${appId}/.MainActivity" }
+
+        // 轮询获取 PID（最多 10 秒）：先尝试 pidof，失败则回退解析 ps -A
+        String pid = null
+        int tries = 0
+        while (pid == null && tries < 20) {
+            def out = new ByteArrayOutputStream()
+            exec {
+                commandLine adbExe, 'shell', 'pidof', appId
+                standardOutput = out
+                ignoreExitValue = true
+            }
+            def candidate = out.toString().trim()
+            if (candidate) {
+                pid = candidate
+            } else {
+                def psOut = new ByteArrayOutputStream()
+                exec {
+                    commandLine adbExe, 'shell', 'ps', '-A'
+                    standardOutput = psOut
+                    ignoreExitValue = true
+                }
+                def line = psOut.toString().readLines().find { it.contains(appId) }
+                if (line) {
+                    def cols = line.trim().split(/\s+/)
+                    if (cols.size() > 1) pid = cols[1] // 第二列通常为 PID
+                }
+            }
+            if (pid == null) {
+                tries++
+                Thread.sleep(500)
+            }
+        }
+
+        if (pid == null) {
+            throw new GradleException("Failed to get PID for ${appId}. Is the app launched?")
+        }
+
+        println "Tailing logcat for PID ${pid} (WARN/ERROR + PhoneNet debug). Press Ctrl+C to stop."
+        // 仅输出本应用进程的 WARN/ERROR/崩溃 + 自定义 PhoneNet 调试日志
+        exec {
+            commandLine adbExe, 'logcat', '--pid', pid, '-v', 'time', 'PhoneNet:D', 'AndroidRuntime:E', '*:W'
+        }
+    }
+}
+
+// 全局任务开始/结束日志（适用于 installDebugAndLogcat 及其依赖的所有任务）
+gradle.taskGraph.beforeTask { Task task ->
+    println "[Task-Start] ${task.path}"
+}
+gradle.taskGraph.afterTask { Task task, TaskState state ->
+    def outcome = state.failure ? "FAILED"
+            : (state.skipped ? "SKIPPED"
+            : (state.upToDate ? "UP-TO-DATE" : "SUCCESS"))
+    println "[Task-End]   ${task.path} => ${outcome}"
 }

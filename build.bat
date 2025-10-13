@@ -12,7 +12,7 @@ echo 请选择要执行的命令：
 echo  1) gradlew.bat clean
 echo  2) gradlew.bat build
 echo  3) gradlew.bat test
-echo  4) gradlew.bat installDebug
+echo  4) gradlew.bat installDebugAndLogcat
 echo  5) gradlew.bat assembleDebug
 echo  6) gradlew.bat installRelease
 echo  7) gradlew.bat assembleRelease
@@ -23,7 +23,7 @@ set "OPT=%ERRORLEVEL%"
 if "%OPT%"=="1" goto do_clean
 if "%OPT%"=="2" goto do_build
 if "%OPT%"=="3" goto do_test
-if "%OPT%"=="4" goto do_installDebug
+if "%OPT%"=="4" goto installDebugAndLogcat
 if "%OPT%"=="5" goto do_assembleDebug
 if "%OPT%"=="6" goto do_installRelease
 if "%OPT%"=="7" goto do_assembleRelease

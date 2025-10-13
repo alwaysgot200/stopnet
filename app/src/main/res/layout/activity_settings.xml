@@ -3,99 +3,104 @@
     android:fillViewport="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <Button
-        android:id="@+id/btnOpenVpnSettings"
-        android:text="打开系统 VPN 设置（建议启用始终开启，不启用锁定）"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp" />
+
     <LinearLayout
         android:orientation="vertical"
         android:padding="16dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-    <EditText
-        android:id="@+id/etParentEmail"
-        android:hint="@string/parent_email"
-        android:inputType="textEmailAddress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp" />
+        <Button
+            android:id="@+id/btnOpenVpnSettings"
+            android:text="打开系统 VPN 设置（建议启用始终开启，不启用锁定）"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" />
 
-    <TextView
-        android:id="@+id/tvSmtpTitle"
-        android:text="@string/smtp_settings"
-        android:textStyle="bold"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp" />
+        <!-- 下面是原有内容，全部放入 LinearLayout 中 -->
 
-    <EditText
-        android:id="@+id/etSmtpHost"
-        android:hint="@string/smtp_host"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etParentEmail"
+            android:hint="@string/parent_email"
+            android:inputType="textEmailAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" />
 
-    <EditText
-        android:id="@+id/etSmtpPort"
-        android:hint="@string/smtp_port"
-        android:inputType="number"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <TextView
+            android:id="@+id/tvSmtpTitle"
+            android:text="@string/smtp_settings"
+            android:textStyle="bold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" />
 
-    <Switch
-        android:id="@+id/swSmtpSsl"
-        android:text="@string/smtp_ssl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etSmtpHost"
+            android:hint="@string/smtp_host"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <Switch
-        android:id="@+id/swSmtpTls"
-        android:text="@string/smtp_tls"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etSmtpPort"
+            android:hint="@string/smtp_port"
+            android:inputType="number"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <EditText
-        android:id="@+id/etSmtpUser"
-        android:hint="@string/smtp_user"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <Switch
+            android:id="@+id/swSmtpSsl"
+            android:text="@string/smtp_ssl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <EditText
-        android:id="@+id/etSmtpPass"
-        android:hint="@string/smtp_pass"
-        android:inputType="textPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <Switch
+            android:id="@+id/swSmtpTls"
+            android:text="@string/smtp_tls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <EditText
-        android:id="@+id/etSmtpFrom"
-        android:hint="@string/smtp_from"
-        android:inputType="textEmailAddress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etSmtpUser"
+            android:hint="@string/smtp_user"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <Button
-        android:id="@+id/btnTestSmtp"
-        android:text="@string/smtp_test"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp" />
+        <EditText
+            android:id="@+id/etSmtpPass"
+            android:hint="@string/smtp_pass"
+            android:inputType="textPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <TextView
-        android:id="@+id/tvWhitelistTitle"
-        android:text="@string/whitelist_apps"
-        android:textStyle="bold"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp" />
+        <EditText
+            android:id="@+id/etSmtpFrom"
+            android:hint="@string/smtp_from"
+            android:inputType="textEmailAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvApps"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:nestedScrollingEnabled="false"
-        android:layout_marginTop="8dp" />
-</LinearLayout>
+        <Button
+            android:id="@+id/btnTestSmtp"
+            android:text="@string/smtp_test"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tvWhitelistTitle"
+            android:text="@string/whitelist_apps"
+            android:textStyle="bold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvApps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
 </androidx.core.widget.NestedScrollView>
