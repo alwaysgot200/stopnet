@@ -1,4 +1,4 @@
-package com.example.phonenet
+package com.example.stopnet
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -16,11 +16,11 @@ import java.nio.ByteBuffer
 class FirewallVpnService : VpnService() {
 
     companion object {
-        const val ACTION_VPN_STATE_CHANGED = "com.example.phonenet.VPN_STATE_CHANGED"
+        const val ACTION_VPN_STATE_CHANGED = "com.example.stopnet.VPN_STATE_CHANGED"
         const val EXTRA_VPN_STATE = "vpn_state"
-        const val ACTION_STOP_VPN = "com.example.phonenet.ACTION_STOP_VPN"
+        const val ACTION_STOP_VPN = "com.example.stopnet.ACTION_STOP_VPN"
         // 新增：白名单重载
-        const val ACTION_RELOAD_WHITELIST = "com.example.phonenet.ACTION_RELOAD_WHITELIST"
+        const val ACTION_RELOAD_WHITELIST = "com.example.stopnet.ACTION_RELOAD_WHITELIST"
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -50,7 +50,7 @@ class FirewallVpnService : VpnService() {
             // 新增：取消所有已安排的重启闹钟与 Job，防止服务被再次拉起
             try {
                 val am = getSystemService(android.app.AlarmManager::class.java)
-                val restart = Intent("com.example.phonenet.ACTION_RESTART_VPN").apply { `package` = packageName }
+                val restart = Intent("com.example.stopnet.ACTION_RESTART_VPN").apply { `package` = packageName }
                 val flagsPi = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
                     (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
 
@@ -152,7 +152,7 @@ class FirewallVpnService : VpnService() {
         if (!userStopped) {
             try {
                 val am = getSystemService(android.app.AlarmManager::class.java)
-                val intent = Intent("com.example.phonenet.ACTION_RESTART_VPN").apply {
+                val intent = Intent("com.example.stopnet.ACTION_RESTART_VPN").apply {
                     `package` = packageName
                 }
                 val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
@@ -183,7 +183,7 @@ class FirewallVpnService : VpnService() {
         if (!userStopped) {
             // 新增：短暂持有唤醒锁，确保下面的重启/调度不被 Doze 影响
             val pm = getSystemService(android.os.PowerManager::class.java)
-            val wl = pm?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "phonenet:restart")
+            val wl = pm?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "stopnet:restart")
             try {
                 wl?.acquire(5000)
 
@@ -210,7 +210,7 @@ class FirewallVpnService : VpnService() {
     private fun scheduleMultipleRestarts() {
         try {
             val am = getSystemService(android.app.AlarmManager::class.java)
-            val intent = Intent("com.example.phonenet.ACTION_RESTART_VPN").apply {
+            val intent = Intent("com.example.stopnet.ACTION_RESTART_VPN").apply {
                 `package` = packageName
             }
             val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
@@ -267,7 +267,7 @@ class FirewallVpnService : VpnService() {
 
         val whitelist = prefs.getStringSet("whitelist_packages", emptySet()) ?: emptySet()
 
-        val builder = Builder().setSession("PhoneNet Firewall")
+        val builder = Builder().setSession("StopNet Firewall")
 
         builder.addAddress("10.0.0.2", 32)
         builder.addRoute("0.0.0.0", 0)
@@ -310,8 +310,8 @@ class FirewallVpnService : VpnService() {
         val channelId = "phonenet_vpn_channel"
         val nm = getSystemService(NotificationManager::class.java)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "PhoneNet VPN", NotificationManager.IMPORTANCE_HIGH)
-            channel.description = "PhoneNet 网络管控服务 - 请勿关闭"
+            val channel = NotificationChannel(channelId, "StopNet VPN", NotificationManager.IMPORTANCE_HIGH)
+            channel.description = "StopNet 网络管控服务 - 请勿关闭"
             channel.setShowBadge(false)
             channel.enableLights(false)
             channel.enableVibration(false)
@@ -325,7 +325,7 @@ class FirewallVpnService : VpnService() {
         val pi = android.app.PendingIntent.getActivity(this, 0, intent, flags)
 
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("PhoneNet 网络管控运行中")
+            .setContentTitle("StopNet 网络管控运行中")
             .setContentText("正在保护设备网络安全，请勿关闭此通知")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentIntent(pi)
@@ -362,7 +362,7 @@ class FirewallVpnService : VpnService() {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channelId = "phonenet_vpn_alert"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                nm.createNotificationChannel(NotificationChannel(channelId, "PhoneNet VPN 警示", NotificationManager.IMPORTANCE_HIGH))
+                nm.createNotificationChannel(NotificationChannel(channelId, "StopNet VPN 警示", NotificationManager.IMPORTANCE_HIGH))
             }
             val settingsIntent = Intent(android.provider.Settings.ACTION_VPN_SETTINGS)
             val pi = PendingIntent.getActivity(
@@ -371,7 +371,7 @@ class FirewallVpnService : VpnService() {
             )
             val notif = NotificationCompat.Builder(this, channelId)
                 .setContentTitle("VPN 已断开")
-                .setContentText("请在系统 VPN 设置中将 PhoneNet 设为“始终开启”，并启用“无 VPN 不允许连接”。")
+                .setContentText("请在系统 VPN 设置中将 StopNet 设为“始终开启”，并启用“无 VPN 不允许连接”。")
                 .setSmallIcon(android.R.drawable.ic_dialog_alert)
                 .setContentIntent(pi)
                 .setAutoCancel(true)

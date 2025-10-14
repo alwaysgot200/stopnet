@@ -1,4 +1,4 @@
-package com.example.phonenet.admin
+package com.example.stopnet.admin
 
 import android.app.admin.DeviceAdminReceiver
 import android.content.Context
@@ -19,7 +19,7 @@ class MyDeviceAdminReceiver : DeviceAdminReceiver() {
             val subject = "【PhoneNet】设备管理停用提醒"
             val body = "设备管理权限正在被停用，可能即将卸载应用。请注意孩子的上网行为。"
             try {
-                com.example.phonenet.mail.MailJobIntentService.enqueue(context, email, subject, body)
+                com.example.stopnet.mail.MailJobIntentService.enqueue(context, email, subject, body)
             } catch (_: Exception) {
                 // 忽略发送失败
             }

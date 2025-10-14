@@ -34,7 +34,7 @@ jobs:
             echo "ANDROID_KEYSTORE_BASE64 is empty; aborting."
             exit 1
           fi
-          KEYPATH="${RUNNER_TEMP}/phonenet.jks"
+          KEYPATH="${RUNNER_TEMP}/stopnet.jks"
           echo "${ANDROID_KEYSTORE_BASE64}" | base64 -d > "${KEYPATH}"
           echo "ANDROID_KEYSTORE_PATH=${KEYPATH}" >> $GITHUB_ENV
 

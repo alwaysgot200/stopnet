@@ -1,4 +1,4 @@
-package com.example.phonenet.mail
+package com.example.stopnet.mail
 
 import android.content.Context
 import android.content.Intent

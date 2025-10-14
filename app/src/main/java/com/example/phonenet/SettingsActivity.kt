@@ -1,4 +1,4 @@
-package com.example.phonenet
+package com.example.stopnet
 
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
@@ -15,7 +15,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.phonenet.admin.MyDeviceAdminReceiver
+import com.example.stopnet.admin.MyDeviceAdminReceiver
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -210,7 +210,7 @@ class SettingsActivity : AppCompatActivity() {
         val subject = getString(R.string.smtp_test_subject)
         val body = getString(R.string.smtp_test_body)
         try {
-            com.example.phonenet.mail.MailJobIntentService.enqueue(this, to, subject, body)
+            com.example.stopnet.mail.MailJobIntentService.enqueue(this, to, subject, body)
             android.widget.Toast.makeText(this, "测试邮件已发送（请查看收件箱）", android.widget.Toast.LENGTH_SHORT).show()
         } catch (_: Exception) {
             android.widget.Toast.makeText(this, "发送失败，请检查配置", android.widget.Toast.LENGTH_SHORT).show()

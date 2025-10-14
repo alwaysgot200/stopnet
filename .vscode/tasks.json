@@ -5,7 +5,7 @@
       "label": "StartEmulator",
       "type": "shell",
       "windows": {
-        "command": "start \"\" \"${config:phonenet.emulatorPath}\" -avd ${config:phonenet.androidAvdName} -no-snapshot-load -no-snapshot-save -netdelay none -netspeed full && \"${config:phonenet.adbPath}\" wait-for-device"
+        "command": "start \"\" \"${config:stopnet.emulatorPath}\" -avd ${config:stopnet.androidAvdName} -no-snapshot-load -no-snapshot-save -netdelay none -netspeed full && \"${config:stopnet.adbPath}\" wait-for-device"
       },
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "never" }
@@ -14,7 +14,7 @@
       "label": "UninstallDebugApp",
       "type": "shell",
       "windows": {
-        "command": "\"${config:phonenet.adbPath}\" uninstall ${config:phonenet.packageName} || echo Not installed"
+        "command": "\"${config:stopnet.adbPath}\" uninstall ${config:stopnet.packageName} || echo Not installed"
       },
       "options": { "cwd": "${workspaceFolder}" },
       "group": "test",
@@ -24,9 +24,9 @@
     {
       "label": "AppSignKey",
       "type": "shell",
-      "command": "keytool -genkey -v -keystore \"${workspaceFolder}\\phonenet.jks\" -keyalg RSA -keysize 2048 -validity 10000 -alias phonenet",
+      "command": "keytool -genkey -v -keystore \"${workspaceFolder}\\stopnet.jks\" -keyalg RSA -keysize 2048 -validity 10000 -alias stopnet",
       "windows": {
-        "command": "del \"${workspaceFolder}\\phonenet.jks\" 2>nul & keytool -genkey -v -keystore \"${workspaceFolder}\\phonenet.jks\" -keyalg RSA -keysize 2048 -validity 10000 -alias phonenet"
+        "command": "del \"${workspaceFolder}\\stopnet.jks\" 2>nul & keytool -genkey -v -keystore \"${workspaceFolder}\\stopnet.jks\" -keyalg RSA -keysize 2048 -validity 10000 -alias stopnet"
       },
       "group": "test",
       "presentation": { "reveal": "always" }
@@ -69,7 +69,7 @@
       "label": "RunDebugAppWithEmulator",
       "type": "shell",
       "windows": {
-        "command": "\"${config:phonenet.adbPath}\" shell am start -n com.example.phonenet/com.example.phonenet.MainActivity"
+        "command": "\"${config:stopnet.adbPath}\" shell am start -n com.example.stopnet/com.example.stopnet.MainActivity"
       },
       "dependsOn": ["StartEmulator", "installDebugAndLogcat"],
       "dependsOrder": "sequence",

@@ -1,4 +1,4 @@
-package com.example.phonenet
+package com.example.stopnet
 
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -369,7 +369,7 @@ class MainActivity : AppCompatActivity() {
         for (intent in intents) {
             try {
                 startActivity(intent)
-                android.widget.Toast.makeText(this, "请在列表中找到 PhoneNet 并允许自动启动", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "请在列表中找到 StopNet 并允许自动启动", android.widget.Toast.LENGTH_LONG).show()
                 return
             } catch (_: Exception) { /* continue */ }
         }
@@ -425,7 +425,7 @@ class MainActivity : AppCompatActivity() {
             )
 
             if (tried) {
-                android.widget.Toast.makeText(this, "请在电池/后台管理中为 PhoneNet 设为“无限制”或“允许后台运行”", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "请在电池/后台管理中为 StopNet 设为“无限制”或“允许后台运行”", android.widget.Toast.LENGTH_LONG).show()
                 return
             }
 
@@ -436,7 +436,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
             ) {
-                android.widget.Toast.makeText(this, "请在电池优化或应用详情中将 PhoneNet 设置为“不要优化/无限制”", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "请在电池优化或应用详情中将 StopNet 设置为“不要优化/无限制”", android.widget.Toast.LENGTH_LONG).show()
             } else {
                 android.widget.Toast.makeText(this, "无法自动打开电池相关设置，请在系统设置中手动查找", android.widget.Toast.LENGTH_SHORT).show()
             }

@@ -3,16 +3,30 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def appBaseName = (project.findProperty("APP_BASE_NAME") ?: "stopnet").toString()
+
+// 基于 Git tag 的版本号（形如 v1.0.xxx）
+def gitTag = "v1.0.0"
+try {
+    def proc = ["git", "describe", "--tags", "--match", "v*", "--abbrev=0"].execute(null, rootProject.projectDir)
+    proc.waitFor()
+    if (proc.exitValue() == 0) {
+        gitTag = proc.in.text.trim()
+    }
+} catch (_) { }
+def versionNameFromTag = gitTag?.startsWith("v") ? gitTag.substring(1) : gitTag
+
 android {
-    namespace "com.example.phonenet"
+    namespace "com.example.stopnet"
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.phonenet"
+        applicationId "com.example.stopnet"
         minSdk 24
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        // 基于 Git tag 的版本名
+        versionName versionNameFromTag
     }
 
     // 读取签名配置：环境变量优先，gradle.properties 次之，最后回退到 keytool/signing.properties
@@ -25,7 +39,7 @@ android {
     // 原 ksPath/ksPass/keyAlias/keyPass 改名，避免与 DSL 属性/方法冲突
     def signingStorePath   = System.getenv("ANDROID_KEYSTORE_PATH")
             ?: (project.findProperty("ANDROID_KEYSTORE_PATH") ?: signingProps.getProperty("storeFile")
-            ?: new File(rootProject.projectDir, "keytool/phonenet.jks").absolutePath)
+            ?: new File(rootProject.projectDir, "keytool/stopnet.jks").absolutePath)
     def signingStorePassword   = System.getenv("ANDROID_KEYSTORE_PASSWORD")
             ?: (project.findProperty("ANDROID_KEYSTORE_PASSWORD") ?: signingProps.getProperty("storePassword"))
     def signingKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
@@ -83,6 +97,21 @@ android {
     }
 }
 
+// APK 命名：stopnet-debug.apk / stopnet-release-v{versionName}.apk
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def buildType = variant.buildType
+        def vn = (variant.versionName.isPresent() ? variant.versionName.get() : versionNameFromTag)
+        variant.outputs.each { output ->
+            if (buildType == "release") {
+                output.outputFileName.set("${appBaseName}-${buildType}-v${vn}.apk")
+            } else {
+                output.outputFileName.set("${appBaseName}-${buildType}.apk")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
     implementation 'androidx.core:core-ktx:1.13.1'
@@ -98,7 +127,8 @@ dependencies {
 def emulatorExe = (project.findProperty("emulatorExe") ?: "D:\\programfiles\\Android\\SDK\\emulator\\emulator.exe").toString()
 def adbExe      = (project.findProperty("adbExe")      ?: "D:\\programfiles\\Android\\SDK\\platform-tools\\adb.exe").toString()
 def avdName     = (project.findProperty("avdName")     ?: "Pixel_6_API_34").toString()
-def appId       = (project.findProperty("appId")       ?: "com.example.phonenet").toString()
+// 优先使用默认配置中的 applicationId，其次允许通过 -PappId 覆盖
+def appId       = (project.findProperty("appId") ?: (android.defaultConfig.applicationId ?: "com.example.stopnet")).toString()
 
 // 启动模拟器（若无已连接设备）
 tasks.register("startEmulator") {
@@ -255,10 +285,10 @@ tasks.register('installDebugAndLogcat') {
             throw new GradleException("Failed to get PID for ${appId}. Is the app launched?")
         }
 
-        println "Tailing logcat for PID ${pid} (WARN/ERROR + PhoneNet debug). Press Ctrl+C to stop."
-        // 仅输出本应用进程的 WARN/ERROR/崩溃 + 自定义 PhoneNet 调试日志
+        println "Tailing logcat for PID ${pid} (WARN/ERROR + stopnet debug). Press Ctrl+C to stop."
+        // 仅输出本应用进程的 WARN/ERROR/崩溃 + 自定义 stopnet 调试日志
         exec {
-            commandLine adbExe, 'logcat', '--pid', pid, '-v', 'time', 'PhoneNet:D', 'AndroidRuntime:E', '*:W'
+            commandLine adbExe, 'logcat', '--pid', pid, '-v', 'time', 'stopnet:D', 'AndroidRuntime:E', '*:W'
         }
     }
 }

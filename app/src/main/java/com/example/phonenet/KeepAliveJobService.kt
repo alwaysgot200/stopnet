@@ -1,4 +1,4 @@
-package com.example.phonenet
+package com.example.stopnet
 
 import android.app.job.JobParameters
 import android.app.job.JobService

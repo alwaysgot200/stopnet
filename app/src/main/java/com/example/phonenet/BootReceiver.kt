@@ -1,4 +1,4 @@
-package com.example.phonenet
+package com.example.stopnet
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,7 +28,7 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_USER_UNLOCKED -> {
                 startIfEnabledUnlocked(context)
             }
-            "com.example.phonenet.ACTION_RESTART_VPN" -> {
+            "com.example.stopnet.ACTION_RESTART_VPN" -> {
                 startIfEnabledUnlocked(context)
             }
         }
