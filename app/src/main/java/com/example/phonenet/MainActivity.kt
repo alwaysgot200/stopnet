@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,6 +22,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSettings: Button
     private lateinit var btnIgnoreBattery: Button
     private lateinit var btnAutoStart: Button
+
+    // 使用新的 Activity Result API 替代 startActivityForResult
+    private val prepareVpnLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val serviceIntent = Intent(this, FirewallVpnService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            // 预设为"运行中"，由服务广播或写入统一纠正
+            VpnStateStore.set(true)
+            updateStatus(true)
+        }
+        updateStatus()
+        // 移除延迟刷新，避免回退覆盖
+        updateStatusSoon()
+    }
 
     private var didShowPin = false
     private var isPinDialogShowing: Boolean = false
@@ -50,7 +71,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val PREPARE_VPN_REQ = 1001
         private const val REQUEST_NOTIF = 2001
     }
 
@@ -87,23 +107,7 @@ class MainActivity : AppCompatActivity() {
         handleNormalAppStart()
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PREPARE_VPN_REQ && resultCode == RESULT_OK) {
-            val serviceIntent = Intent(this, FirewallVpnService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
-            // 预设为“运行中”，由服务广播或写入统一纠正
-            VpnStateStore.set(true)
-            updateStatus(true)
-        }
-        updateStatus()
-        // 移除延迟刷新，避免回退覆盖
-        updateStatusSoon()
-    }
+    
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -331,7 +335,7 @@ class MainActivity : AppCompatActivity() {
             AlertDialog.Builder(this)
                 .setMessage(getString(R.string.vpn_permission_required))
                 .setPositiveButton("OK") { _, _ ->
-                    startActivityForResult(intent, PREPARE_VPN_REQ)
+                    prepareVpnLauncher.launch(intent)
                 }
                 .show()
         } else {
@@ -557,7 +561,7 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("PIN验证")
-            .setMessage("请输入PIN密码以继续操作")
+            .setMessage("请输入PIN密码以进入主界面")
             .setView(input)
             .setCancelable(false)
             .setPositiveButton("确定") { _, _ ->
@@ -567,16 +571,25 @@ class MainActivity : AppCompatActivity() {
                     onSuccess()
                 } else {
                     isPinDialogShowing = false
-                    android.widget.Toast.makeText(this, "PIN密码错误", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "PIN密码错误，无法进入主界面", android.widget.Toast.LENGTH_SHORT).show()
+                    // PIN 验证失败，关闭应用，不允许进入主界面
+                    finish()
                 }
             }
             .setNegativeButton("取消") { _, _ ->
                 isPinDialogShowing = false
+                android.widget.Toast.makeText(this, "已取消，无法进入主界面", android.widget.Toast.LENGTH_SHORT).show()
+                // 用户取消验证，关闭应用，不允许进入主界面
+                finish()
             }
             .create()
 
         dialog.setOnDismissListener {
-            if (isPinDialogShowing) isPinDialogShowing = false
+            if (isPinDialogShowing) {
+                isPinDialogShowing = false
+                // 对话框被异常关闭（如按返回键），也应关闭应用
+                finish()
+            }
         }
 
         dialog.show()
@@ -623,7 +636,7 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("设置PIN密码")
-            .setMessage("首次使用需要设置PIN密码，用于保护应用安全")
+            .setMessage("首次使用需要设置PIN密码，用于进入主界面的权限检查")
             .setView(container)
             .setCancelable(false)
             .setPositiveButton("确定") { _, _ ->
@@ -632,9 +645,13 @@ class MainActivity : AppCompatActivity() {
                 if (p1.length < 4) {
                     isPinDialogShowing = false
                     android.widget.Toast.makeText(this, "PIN密码至少需要4位数字", android.widget.Toast.LENGTH_SHORT).show()
+                    // PIN 设置失败，关闭应用
+                    finish()
                 } else if (p1 != p2) {
                     isPinDialogShowing = false
                     android.widget.Toast.makeText(this, "两次输入的PIN密码不一致", android.widget.Toast.LENGTH_SHORT).show()
+                    // PIN 设置失败，关闭应用
+                    finish()
                 } else {
                     val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
                     prefs.edit().putString("pin", p1).apply()
@@ -645,11 +662,18 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消") { _, _ ->
                 isPinDialogShowing = false
+                android.widget.Toast.makeText(this, "未设置PIN密码，无法使用应用", android.widget.Toast.LENGTH_SHORT).show()
+                // 用户取消设置 PIN，关闭应用
+                finish()
             }
             .create()
 
         dialog.setOnDismissListener {
-            if (isPinDialogShowing) isPinDialogShowing = false
+            if (isPinDialogShowing) {
+                isPinDialogShowing = false
+                // 对话框被异常关闭（如按返回键），也应关闭应用
+                finish()
+            }
         }
 
         dialog.show()

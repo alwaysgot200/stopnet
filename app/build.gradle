@@ -143,35 +143,87 @@ tasks.register("startEmulator") {
             ignoreExitValue = true
         }
         println "Device check completed"
-        // 同时接受 device/offline/unauthorized 三种状态，避免误判
-        def hasDevice = out.toString().readLines().any { it =~ /\t(device|offline|unauthorized)$/ }
-        if (hasDevice) {
-            println("[startEmulator] Device already connected; skip emulator start.")
-        } else {
-            // 校验 emulator 可执行文件路径
-            def emuFile = new File(emulatorExe)
-            if (!emuFile.exists()) {
-                println("[startEmulator] ERROR: Emulator not found at '${emulatorExe}'.")
+        
+        // 只检查已完全就绪的设备（device状态），offline/unauthorized 视为"正在启动中"
+        def hasReadyDevice = out.toString().readLines().any { it =~ /\tdevice$/ }
+        def hasStartingDevice = out.toString().readLines().any { it =~ /\t(offline|unauthorized)$/ }
+        
+        if (hasReadyDevice) {
+            println("[startEmulator] Device already ready; skip emulator start.")
+            return
+        }
+        
+        if (hasStartingDevice) {
+            println("[startEmulator] Device is starting (offline/unauthorized); skip new emulator start.")
+            return
+        }
+        
+        // 检查是否已有模拟器进程在运行（避免重复启动）
+        def listAvdOut = new ByteArrayOutputStream()
+        try {
+            exec {
+                commandLine(emulatorExe, "-list-avds")
+                standardOutput = listAvdOut
+                ignoreExitValue = true
+            }
+            // 验证 AVD 是否存在
+            def availableAvds = listAvdOut.toString().readLines().collect { it.trim() }.findAll { it }
+            if (!availableAvds.contains(avdName)) {
+                println("[startEmulator] ERROR: AVD '${avdName}' not found. Available AVDs: ${availableAvds}")
+                println("[startEmulator] Please create AVD or update 'avdName' property in build.gradle")
                 return
             }
-            println("[startEmulator] No device detected; starting emulator: ${avdName}")
+        } catch (Exception e) {
+            println("[startEmulator] WARNING: Cannot verify AVD existence: ${e.message}")
+        }
+        
+        // 校验 emulator 可执行文件路径
+        def emuFile = new File(emulatorExe)
+        if (!emuFile.exists()) {
+            println("[startEmulator] ERROR: Emulator not found at '${emulatorExe}'.")
+            println("[startEmulator] Please set correct 'emulatorExe' path via -PemulatorExe=<path>")
+            return
+        }
+        
+        println("[startEmulator] Starting emulator: ${avdName}")
+        
+        // 使用 ProcessBuilder 异步启动，并重定向输出避免缓冲区阻塞
+        def logFile = new File(project.buildDir, "emulator-${avdName}.log")
+        def processBuilder = new ProcessBuilder(
+            emulatorExe,
+            "-avd", avdName,
+            "-netdelay", "none",
+            "-netspeed", "full",
+            "-no-snapshot-load",
+            "-no-boot-anim",
+            "-no-audio",
+            "-gpu", "auto"
+        )
+        processBuilder.directory(new File(emulatorExe).parentFile)
+        processBuilder.redirectErrorStream(true)
+        processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
+        
+        try {
+            def process = processBuilder.start()
+            println "[startEmulator] Emulator process started (PID may not be accessible from Gradle)"
+            println "[startEmulator] Log file: ${logFile.absolutePath}"
             
-            // 使用 ProcessBuilder 而不是 exec，确保异步启动
-            def processBuilder = new ProcessBuilder(
-                emulatorExe,
-                "-avd", avdName,
-                "-netdelay", "none",
-                "-netspeed", "full",
-                "-no-snapshot-load",
-                "-no-boot-anim"
-            )
-            processBuilder.directory(new File(emulatorExe).parentFile)
-            processBuilder.start()
+            // 等待模拟器进程初始化（给足够时间让进程启动窗口）
+            Thread.sleep(3000)
             
-            println "[startEmulator] Emulator process started"
-            // 给进程2秒钟启动
-            Thread.sleep(2000)
-            println "[startEmulator] Task completed"
+            // 验证进程是否还在运行
+            try {
+                def exitValue = process.exitValue()
+                println "[startEmulator] WARNING: Emulator process exited immediately with code ${exitValue}"
+                println "[startEmulator] Check log file for details: ${logFile.absolutePath}"
+            } catch (IllegalThreadStateException e) {
+                // 进程仍在运行，这是期望的行为
+                println "[startEmulator] Emulator process is running, waiting for ADB connection..."
+            }
+        } catch (Exception e) {
+            println "[startEmulator] ERROR: Failed to start emulator: ${e.message}"
+            e.printStackTrace()
+            throw new GradleException("Emulator start failed: ${e.message}")
         }
     }
 }
