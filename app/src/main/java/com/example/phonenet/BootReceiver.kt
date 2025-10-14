@@ -63,13 +63,39 @@ class BootReceiver : BroadcastReceiver() {
         // 系统 VPN 授权检查：返回 null 表示已授权，可后台启动
         val prepareIntent = VpnService.prepare(context)
         if (prepareIntent == null) {
-            // 在后台启动前台服务（VPN），随后由服务侧建立隧道
+            // 已授权：直接后台启动前台服务
             val serviceIntent = Intent(context, FirewallVpnService::class.java)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent)
             } else {
                 context.startService(serviceIntent)
             }
+        } else {
+            // 未授权：后台尝试拉起主界面，引导授权/启动
+            try {
+                val launch = Intent(context, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra("from_boot", true)
+                }
+                // 即使未授予悬浮窗，也尝试启动；部分 ROM 在允许“自启动/关联启动”时会放行
+                context.startActivity(launch)
+            } catch (_: Exception) { }
+
+            // 安排一次短延时重试（广播到自身）
+            try {
+                val am = context.getSystemService(android.app.AlarmManager::class.java)
+                val retryIntent = Intent("com.example.stopnet.ACTION_RESTART_VPN").apply {
+                    `package` = context.packageName
+                }
+                val flagsPi = android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                    (if (android.os.Build.VERSION.SDK_INT >= 23) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
+                val pi = android.app.PendingIntent.getBroadcast(context, 1010, retryIntent, flagsPi)
+                am?.setExactAndAllowWhileIdle(
+                    android.app.AlarmManager.RTC_WAKEUP,
+                    System.currentTimeMillis() + 5000,
+                    pi
+                )
+            } catch (_: Exception) { }
         }
     }
 }

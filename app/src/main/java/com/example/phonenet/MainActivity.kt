@@ -74,7 +74,41 @@ class MainActivity : AppCompatActivity() {
         updateBatteryButtonState()
         updateStatus()
 
-        // 启动时进行一次 PIN 验证
+        // 若为“从开机广播拉起”的场景，进行自动化处理
+        val fromBoot = intent?.getBooleanExtra("from_boot", false) == true
+        if (fromBoot) {
+            // Android 13+ 先请求通知权限，保证前台服务 10s 内通知稳定展示
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIF)
+                    // 等权限回调后继续自动启动逻辑
+                    return
+                }
+            }
+            // 可选：提示用户授权悬浮窗，以提升某些 ROM 的后台拉起活动成功率
+            try {
+                if (!android.provider.Settings.canDrawOverlays(this)) {
+                    AlertDialog.Builder(this)
+                        .setTitle("建议授权“悬浮窗”权限")
+                        .setMessage("为提高开机后台拉起界面引导授权的成功率，建议为 StopNet 允许“在其他应用上层显示”。")
+                        .setPositiveButton("去授权") { _, _ ->
+                            val uri = android.net.Uri.parse("package:$packageName")
+                            val overlayIntent = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, uri)
+                            startActivity(overlayIntent)
+                        }
+                        .setNegativeButton("稍后") { _, _ -> }
+                        .show()
+                }
+            } catch (_: Exception) { }
+
+            // 自动尝试启动 VPN 服务（若未授权会弹系统授权框）
+            attemptStartVpnService()
+            // 跳过 PIN 对话（开机自动启动路径）
+            return
+        }
+
+        // 启动时进行一次 PIN 验证（非 from_boot 路径）
         showPinVerification()
     }
 
