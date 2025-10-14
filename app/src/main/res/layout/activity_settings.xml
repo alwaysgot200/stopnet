@@ -10,6 +10,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <!-- 新增：默认自动启动 VPN 开关（仅控制 APP 启动） -->
+        <Switch
+            android:id="@+id/swDefaultAutoStartVpn"
+            android:text="@string/default_auto_start_vpn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <Button
             android:id="@+id/btnOpenVpnSettings"
             android:text="打开系统 VPN 设置（建议启用始终开启，不启用锁定）"

@@ -30,6 +30,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etSmtpUser: EditText
     private lateinit var etSmtpPass: EditText
     private lateinit var etSmtpFrom: EditText
+    private lateinit var swDefaultAutoStartVpn: android.widget.Switch
 
     private val prefs by lazy { getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE) }
     private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE) }
@@ -52,6 +53,14 @@ class SettingsActivity : AppCompatActivity() {
         etSmtpUser = findViewById(R.id.etSmtpUser)
         etSmtpPass = findViewById(R.id.etSmtpPass)
         etSmtpFrom = findViewById(R.id.etSmtpFrom)
+        swDefaultAutoStartVpn = findViewById(R.id.swDefaultAutoStartVpn)
+        val auto = prefs.getBoolean("default_auto_start_vpn", dpsPrefs.getBoolean("default_auto_start_vpn", true))
+        swDefaultAutoStartVpn.isChecked = auto
+        swDefaultAutoStartVpn.setOnCheckedChangeListener { _, checked ->
+            // 双写：普通存储与设备保护存储
+            prefs.edit().putBoolean("default_auto_start_vpn", checked).apply()
+            dpsPrefs.edit().putBoolean("default_auto_start_vpn", checked).apply()
+        }
 
         btnOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
         btnTestSmtp.setOnClickListener { sendTestEmail() }

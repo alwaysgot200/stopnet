@@ -17,8 +17,9 @@ echo  4) gradlew.bat installDebugAndLogcat
 echo  5) gradlew.bat assembleDebug
 echo  6) gradlew.bat installRelease
 echo  7) gradlew.bat assembleRelease
-CHOICE /C 1234567 /N /M "输入数字并回车： "
-set "OPT=%ERRORLEVEL%"
+echo  8) adb stop app
+echo  9) adb -e emu kill
+set /p OPT="输入数字并回车： "
 
 :handle
 if "%OPT%"=="1" goto do_clean
@@ -28,6 +29,8 @@ if "%OPT%"=="4" goto do_installDebugAndLogcat
 if "%OPT%"=="5" goto do_assembleDebug
 if "%OPT%"=="6" goto do_installRelease
 if "%OPT%"=="7" goto do_assembleRelease
+if "%OPT%"=="8" goto do_stopApp
+if "%OPT%"=="9" goto do_killEmulator
 
 echo 无效输入：%OPT%
 set "EXIT_CODE=1"
@@ -58,7 +61,15 @@ goto end
 goto end
 
 :do_assembleRelease
-.\gradlew.bat assembleRelease
+.\u200cgradlew.bat assembleRelease
+goto end
+
+:do_stopApp
+adb shell am force-stop com.example.stopnet
+goto end
+
+:do_killEmulator
+adb -e emu kill
 goto end
 
 :end

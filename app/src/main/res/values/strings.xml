@@ -28,4 +28,5 @@
     <string name="ignore_battery_optimization">忽略电池优化（提升稳定性）</string>
     <string name="battery_opt_desc">请允许忽略电池优化以减少服务被系统回收</string>
     <string name="allow_auto_start">允许自动启动（提升稳定性）</string>
+    <string name="default_auto_start_vpn">默认自动启动 VPN（每次重启 APP 自动开启）</string>
 </resources>

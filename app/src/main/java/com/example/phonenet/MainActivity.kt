@@ -147,34 +147,47 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPinVerification() {
         val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
+        val defaultAutoStart = prefs.getBoolean("default_auto_start_vpn", true)
         val saved = prefs.getString("pin", null)
 
+        // 默认自动启动 VPN：跳过 PIN，直接尝试启动
+        if (defaultAutoStart) {
+            didShowPin = true
+            attemptStartVpnService()
+            return
+        }
+
+        // 关闭默认自动启动：按原逻辑要求 PIN
         if (didShowPin) {
-            handleAutoStartLogic()
+            // 已显示过 PIN，本次只刷新状态，不做自动启动
+            updateStatus()
             return
         }
 
         if (saved.isNullOrEmpty()) {
             showSetPinDialog {
                 didShowPin = true
-                handleAutoStartLogic()
+                // 关闭自动启动：仅刷新状态，是否开启由用户手动点击
+                updateStatus()
             }
         } else {
             showEnterPinDialog(saved) {
                 didShowPin = true
-                handleAutoStartLogic()
+                // 关闭自动启动：仅刷新状态，是否开启由用户手动点击
+                updateStatus()
             }
         }
     }
 
     private fun handleAutoStartLogic() {
         val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
-        val autoStart = prefs.getBoolean("auto_start_on_boot", true)
+        val defaultAutoStart = prefs.getBoolean("default_auto_start_vpn", true)
 
-        if (autoStart) {
+        if (defaultAutoStart) {
+            // APP 从 0→1 启动：默认开启 VPN（忽略上次会话的“停止管控”）
             attemptStartVpnService()
         } else {
-            checkAndRestartServiceIfNeeded()
+            // 关闭默认自动启动：不自动恢复/启动，由用户手动决定
         }
         updateStatus()
         updateStatusSoon()
