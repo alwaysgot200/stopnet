@@ -31,8 +31,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var etSmtpPass: EditText
     private lateinit var etSmtpFrom: EditText
 
-    private val prefs by lazy { getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
-    private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE) }
+    private val prefs by lazy { getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE) }
+    private val dpsPrefs by lazy { createDeviceProtectedStorageContext().getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE) }
     private val appItems = mutableListOf<AppItem>()
     private lateinit var adapter: AppAdapter
     private var isPinDialogShowing = false

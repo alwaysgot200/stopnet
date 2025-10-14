@@ -11,7 +11,7 @@ import androidx.annotation.RequiresApi
 class KeepAliveJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val shouldBeRunning = prefs.getBoolean("vpn_running", false)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
 

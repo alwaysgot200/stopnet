@@ -36,7 +36,7 @@ class BootReceiver : BroadcastReceiver() {
 
     private fun startIfEnabledLocked(context: Context) {
         val dpsCtx = context.createDeviceProtectedStorageContext()
-        val prefs = dpsCtx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = dpsCtx.getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
         val running = prefs.getBoolean("vpn_running", false)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
@@ -53,7 +53,7 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     private fun startIfEnabledUnlocked(context: Context) {
-        val prefs = context.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val enabled = prefs.getBoolean("auto_start_on_boot", true)
         val running = prefs.getBoolean("vpn_running", false)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)

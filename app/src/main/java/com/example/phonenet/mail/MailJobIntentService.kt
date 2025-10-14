@@ -29,9 +29,9 @@ class MailJobIntentService : JobIntentService() {
     override fun onHandleWork(intent: Intent) {
         val ctx = applicationContext
 
-        val prefs = ctx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val dpsPrefs = ctx.createDeviceProtectedStorageContext()
-            .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
 
         fun prefString(key: String): String? {
             return prefs.getString(key, dpsPrefs.getString(key, null))

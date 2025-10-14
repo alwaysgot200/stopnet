@@ -13,10 +13,10 @@ class MyDeviceAdminReceiver : DeviceAdminReceiver() {
     }
 
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
-        val prefs = context.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val email = prefs.getString("parent_email", null)
         if (!email.isNullOrBlank()) {
-            val subject = "【PhoneNet】设备管理停用提醒"
+            val subject = "【StopNet】设备管理停用提醒"
             val body = "设备管理权限正在被停用，可能即将卸载应用。请注意孩子的上网行为。"
             try {
                 com.example.stopnet.mail.MailJobIntentService.enqueue(context, email, subject, body)

@@ -69,7 +69,7 @@ class MainActivity : AppCompatActivity() {
         btnAutoStart.setOnClickListener { requestAutoStartPermission() }
 
         // 统一用 app 级偏好，仅用于回退读取
-        appPrefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        appPrefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
 
         updateBatteryButtonState()
         updateStatus()
@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPinVerification() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val saved = prefs.getString("pin", null)
 
         if (didShowPin) {
@@ -168,7 +168,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleAutoStartLogic() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val autoStart = prefs.getBoolean("auto_start_on_boot", true)
 
         if (autoStart) {
@@ -225,9 +225,9 @@ class MainActivity : AppCompatActivity() {
     private fun toggleVpn() {
         // 优先使用全局内存态，其次回退到偏好
         val current = VpnStateStore.current() ?: run {
-            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val p1 = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             val dps = createDeviceProtectedStorageContext()
-                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             p1.getBoolean("vpn_running", false) || dps.getBoolean("vpn_running", false)
         }
         val savedPin = appPrefs.getString("pin", "") ?: ""
@@ -291,11 +291,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopVpn() {
         try {
-            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val p1 = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_user_stop", true).apply()
             p1.edit().putBoolean("vpn_running", false).apply()
             val dps = createDeviceProtectedStorageContext()
-                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_user_stop", true).apply()
             dps.edit().putBoolean("vpn_running", false).apply()
         } catch (_: Exception) { }
@@ -322,9 +322,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateStatus(running: Boolean? = null) {
         val isRunning = running ?: VpnStateStore.current() ?: run {
-            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val p1 = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             val dps = createDeviceProtectedStorageContext()
-                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             p1.getBoolean("vpn_running", false) || dps.getBoolean("vpn_running", false)
         }
         btnToggleVpn.text = getString(if (isRunning) R.string.stop_vpn else R.string.start_vpn)
@@ -346,7 +346,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestAutoStartPermission() {
         // 切换期望状态并保存
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val currentStatus = prefs.getBoolean("auto_start_on_boot", false)
         prefs.edit().putBoolean("auto_start_on_boot", !currentStatus).apply()
         updateAutoStartButtonState()
@@ -458,7 +458,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAndRestartServiceIfNeeded() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val shouldBeRunning = prefs.getBoolean("vpn_running", false)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
 
@@ -528,7 +528,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateAutoStartButtonState() {
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false)
 
         if (autoStartEnabled) {
@@ -577,7 +577,7 @@ class MainActivity : AppCompatActivity() {
                     isPinDialogShowing = false
                     android.widget.Toast.makeText(this, "两次输入的PIN密码不一致", android.widget.Toast.LENGTH_SHORT).show()
                 } else {
-                    val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                    val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
                     prefs.edit().putString("pin", p1).apply()
                     isPinDialogShowing = false
                     android.widget.Toast.makeText(this, "PIN密码设置成功", android.widget.Toast.LENGTH_SHORT).show()

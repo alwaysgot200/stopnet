@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 > nul
 setlocal
 
 REM 支持传入数字参数直接执行（如：build.bat 5）
@@ -23,7 +24,7 @@ set "OPT=%ERRORLEVEL%"
 if "%OPT%"=="1" goto do_clean
 if "%OPT%"=="2" goto do_build
 if "%OPT%"=="3" goto do_test
-if "%OPT%"=="4" goto installDebugAndLogcat
+if "%OPT%"=="4" goto do_installDebugAndLogcat
 if "%OPT%"=="5" goto do_assembleDebug
 if "%OPT%"=="6" goto do_installRelease
 if "%OPT%"=="7" goto do_assembleRelease
@@ -44,8 +45,8 @@ goto end
 .\gradlew.bat test
 goto end
 
-:do_installDebug
-.\gradlew.bat installDebug
+:do_installDebugAndLogcat
+.\gradlew.bat installDebugAndLogcat
 goto end
 
 :do_assembleDebug

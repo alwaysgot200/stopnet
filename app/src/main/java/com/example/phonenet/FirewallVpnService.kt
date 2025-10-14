@@ -30,11 +30,11 @@ class FirewallVpnService : VpnService() {
         // 处理显式 STOP：及时广播 false，清理资源并停止服务，避免重启
         if (intent?.action == ACTION_STOP_VPN) {
             try {
-                val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                val p1 = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
                 p1.edit().putBoolean("vpn_user_stop", true).apply()
                 p1.edit().putBoolean("vpn_running", false).apply()
                 val dps = createDeviceProtectedStorageContext()
-                    .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                    .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
                 dps.edit().putBoolean("vpn_user_stop", true).apply()
                 dps.edit().putBoolean("vpn_running", false).apply()
             } catch (_: Exception) { }
@@ -96,11 +96,11 @@ class FirewallVpnService : VpnService() {
         setupAndStartVpn()
 
         try {
-            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val p1 = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_running", true).apply()
             p1.edit().putBoolean("vpn_user_stop", false).apply()
             val dps = createDeviceProtectedStorageContext()
-                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", true).apply()
             dps.edit().putBoolean("vpn_user_stop", false).apply()
         } catch (_: Exception) { }
@@ -140,11 +140,11 @@ class FirewallVpnService : VpnService() {
 
         var userStopped = false
         try {
-            val p1 = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+            val p1 = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             p1.edit().putBoolean("vpn_running", false).apply()
             userStopped = userStopped || p1.getBoolean("vpn_user_stop", false)
             val dps = createDeviceProtectedStorageContext()
-                .getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", false).apply()
             userStopped = userStopped || dps.getBoolean("vpn_user_stop", false)
         } catch (_: Exception) { }
@@ -177,7 +177,7 @@ class FirewallVpnService : VpnService() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
 
-        val prefs = getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
         val userStopped = prefs.getBoolean("vpn_user_stop", false)
 
         if (!userStopped) {
@@ -256,12 +256,12 @@ class FirewallVpnService : VpnService() {
                 val um = getSystemService(android.os.UserManager::class.java)
                 if (um?.isUserUnlocked == false) {
                     val dpsCtx = createDeviceProtectedStorageContext()
-                    dpsCtx.getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                    dpsCtx.getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
                 } else {
-                    getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                    getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
                 }
             } else {
-                getSharedPreferences("phonenet_prefs", Context.MODE_PRIVATE)
+                getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             }
         }
 
@@ -307,7 +307,7 @@ class FirewallVpnService : VpnService() {
     }
 
     private fun startForegroundNotification() {
-        val channelId = "phonenet_vpn_channel"
+        val channelId = "stopnet_vpn_channel"
         val nm = getSystemService(NotificationManager::class.java)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "StopNet VPN", NotificationManager.IMPORTANCE_HIGH)
@@ -360,7 +360,7 @@ class FirewallVpnService : VpnService() {
             }
         } else {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channelId = "phonenet_vpn_alert"
+            val channelId = "stopnet_vpn_alert"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 nm.createNotificationChannel(NotificationChannel(channelId, "StopNet VPN 警示", NotificationManager.IMPORTANCE_HIGH))
             }
