@@ -135,36 +135,43 @@ def appId       = (project.findProperty("appId") ?: (android.defaultConfig.appli
 // 启动模拟器（若无已连接设备）
 tasks.register("startEmulator") {
     doLast {
+        println "[startEmulator] Checking for devices..."
         def out = new ByteArrayOutputStream()
         exec {
             commandLine(adbExe, "devices")
             standardOutput = out
             ignoreExitValue = true
         }
+        println "Device check completed"
         // 同时接受 device/offline/unauthorized 三种状态，避免误判
         def hasDevice = out.toString().readLines().any { it =~ /\t(device|offline|unauthorized)$/ }
         if (hasDevice) {
-            println("Device already connected; skip emulator start.")
+            println("[startEmulator] Device already connected; skip emulator start.")
         } else {
             // 校验 emulator 可执行文件路径
             def emuFile = new File(emulatorExe)
             if (!emuFile.exists()) {
-                println("Emulator executable not found at '${emulatorExe}'. Please set -PemulatorExe or ensure SDK path.")
+                println("[startEmulator] ERROR: Emulator not found at '${emulatorExe}'.")
                 return
             }
-            println("No device detected; starting emulator: ${avdName}")
-            exec {
-                commandLine(
-                    "cmd", "/c", "start", "", "\"${emulatorExe}\"",
-                    "-avd", avdName,
-                    "-netdelay", "none",
-                    "-netspeed", "full",
-                    "-no-snapshot-load",
-                    "-no-boot-anim"
-                )
-            }
-            // 给进程2秒钟启动，降低 ddms 竞态导致的“卡住”错觉
+            println("[startEmulator] No device detected; starting emulator: ${avdName}")
+            
+            // 使用 ProcessBuilder 而不是 exec，确保异步启动
+            def processBuilder = new ProcessBuilder(
+                emulatorExe,
+                "-avd", avdName,
+                "-netdelay", "none",
+                "-netspeed", "full",
+                "-no-snapshot-load",
+                "-no-boot-anim"
+            )
+            processBuilder.directory(new File(emulatorExe).parentFile)
+            processBuilder.start()
+            
+            println "[startEmulator] Emulator process started"
+            // 给进程2秒钟启动
             Thread.sleep(2000)
+            println "[startEmulator] Task completed"
         }
     }
 }
@@ -254,11 +261,24 @@ tasks.register('installDebugAndLogcat') {
     dependsOn 'installDebug'
 
     doLast {
+        println "[installDebugAndLogcat] Starting custom doLast block..."
+        println "[installDebugAndLogcat] adbExe = ${adbExe}"
+        println "[installDebugAndLogcat] appId = ${appId}"
+        
         // 清空旧日志
-        exec { commandLine adbExe, 'logcat', '-c' }
+        println "[installDebugAndLogcat] Clearing logcat..."
+        exec { 
+            commandLine adbExe, 'logcat', '-c'
+            ignoreExitValue = false
+        }
 
         // 启动应用（按需修改为你的入口 Activity）
-        exec { commandLine adbExe, 'shell', 'am', 'start', '-n', "${appId}/.MainActivity" }
+        println "[installDebugAndLogcat] Launching app: ${appId}/.MainActivity"
+        def launchResult = exec { 
+            commandLine adbExe, 'shell', 'am', 'start', '-n', "${appId}/.MainActivity"
+            ignoreExitValue = true
+        }
+        println "[installDebugAndLogcat] Launch command exit code: ${launchResult.exitValue}"
 
         // 轮询获取 PID（最多 10 秒）：先尝试 pidof，失败则回退解析 ps -A
         String pid = null

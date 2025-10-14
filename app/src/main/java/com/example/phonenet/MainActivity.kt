@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
         btnAutoStart = findViewById(R.id.btnAutoStart)
 
         btnToggleVpn.setOnClickListener { toggleVpn() }
-        btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        btnSettings.setOnClickListener { openSettings() }
         btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
         btnAutoStart.setOnClickListener { requestAutoStartPermission() }
 
@@ -78,27 +78,13 @@ class MainActivity : AppCompatActivity() {
         val fromBoot = intent?.getBooleanExtra("from_boot", false) == true
         if (fromBoot) {
             android.util.Log.d("MainActivity", "从开机广播启动")
-            // Android 13+ 先请求通知权限，保证前台服务 10s 内通知稳定展示
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                if (!granted) {
-                    android.util.Log.d("MainActivity", "请求通知权限")
-                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIF)
-                    // 等权限回调后继续自动启动逻辑
-                    return
-                }
-            }
-            
-            // 自动尝试启动 VPN 服务（若未授权会弹系统授权框）
-            android.util.Log.d("MainActivity", "尝试启动VPN服务")
-            attemptStartVpnService()
-            // 跳过 PIN 对话（开机自动启动路径）
-            didShowPin = true
+            // 开机自启动场景：后台启动VPN，不显示界面，也不需要PIN验证
+            handleBootAutoStart()
             return
         }
 
-        // 启动时进行一次 PIN 验证（非 from_boot 路径）
-        showPinVerification()
+        // 正常启动路径：首次安装时设置PIN，然后根据"默认自动启动VPN"选项决定是否启动VPN
+        handleNormalAppStart()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -122,8 +108,9 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_NOTIF) {
-            // 无论授予与否，执行自动启动逻辑或刷新
-            handleAutoStartLogic()
+            // 通知权限结果回调，仅刷新状态
+            // 不自动启动VPN，由PIN验证后的逻辑控制
+            updateStatus()
         }
     }
 
@@ -168,52 +155,95 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun showPinVerification() {
-        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
-        val defaultAutoStart = prefs.getBoolean("default_auto_start_vpn", true)
-        val saved = prefs.getString("pin", null)
-
-        // 默认自动启动 VPN：跳过 PIN，直接尝试启动
-        if (defaultAutoStart) {
-            didShowPin = true
-            attemptStartVpnService()
-            return
+    // 开机自动启动处理：后台启动VPN，不需要PIN，并立即关闭界面
+    private fun handleBootAutoStart() {
+        // Android 13+ 先请求通知权限，保证前台服务 10s 内通知稳定展示
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                android.util.Log.d("MainActivity", "请求通知权限")
+                // 开机启动时如果没有通知权限，直接关闭界面，不弹权限请求
+                // 用户首次手动打开时会请求权限
+                finish()
+                return
+            }
         }
-
-        // 关闭默认自动启动：按原逻辑要求 PIN
-        if (didShowPin) {
-            // 已显示过 PIN，本次只刷新状态，不做自动启动
-            updateStatus()
-            return
-        }
-
-        if (saved.isNullOrEmpty()) {
-            showSetPinDialog {
-                didShowPin = true
-                // 关闭自动启动：仅刷新状态，是否开启由用户手动点击
-                updateStatus()
+        
+        // 后台自动启动 VPN 服务
+        android.util.Log.d("MainActivity", "开机后台启动VPN服务")
+        val intent = VpnService.prepare(this)
+        if (intent == null) {
+            // VPN已授权，直接启动
+            val serviceIntent = Intent(this, FirewallVpnService::class.java)
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
+                }
+                android.util.Log.d("MainActivity", "VPN服务启动成功")
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "启动VPN服务失败: ${e.message}")
             }
         } else {
-            showEnterPinDialog(saved) {
-                didShowPin = true
-                // 关闭自动启动：仅刷新状态，是否开启由用户手动点击
-                updateStatus()
+            android.util.Log.w("MainActivity", "VPN未授权，开机无法自动启动")
+            // 未授权时不弹授权框，用户首次手动打开时会引导授权
+        }
+        
+        // 关闭界面，不干扰用户
+        finish()
+    }
+
+    // 正常打开APP的处理逻辑
+    private fun handleNormalAppStart() {
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
+        val saved = prefs.getString("pin", null)
+
+        // 首次安装：没有PIN，引导设置PIN
+        if (saved.isNullOrEmpty()) {
+            showSetPinDialog {
+                // PIN设置完成后，直接检查是否自动启动VPN（无需再次验证PIN）
+                checkAndAutoStartVpn()
             }
+            return
+        }
+
+        // 已有PIN：直接检查是否自动启动VPN，不弹PIN验证框
+        // PIN验证推迟到用户点击按钮时才进行
+        checkAndAutoStartVpn()
+    }
+
+    // 检查并根据"默认自动启动VPN"选项决定是否自动启动VPN
+    private fun checkAndAutoStartVpn() {
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
+        val defaultAutoStart = prefs.getBoolean("default_auto_start_vpn", true)
+        
+        android.util.Log.d("MainActivity", "检查自动启动VPN - 选项: $defaultAutoStart")
+        
+        if (defaultAutoStart) {
+            // 已选中"默认自动启动VPN"：立即自动启动VPN（无需PIN验证）
+            attemptStartVpnService()
+        } else {
+            // 未选中：不自动启动，显示主界面，等待用户手动操作
+            updateStatus()
         }
     }
 
-    private fun handleAutoStartLogic() {
-        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
-        val defaultAutoStart = prefs.getBoolean("default_auto_start_vpn", true)
-
-        if (defaultAutoStart) {
-            // APP 从 0→1 启动：默认开启 VPN（忽略上次会话的“停止管控”）
-            attemptStartVpnService()
-        } else {
-            // 关闭默认自动启动：不自动恢复/启动，由用户手动决定
+    // 打开设置页：需要PIN验证
+    private fun openSettings() {
+        val savedPin = appPrefs.getString("pin", "") ?: ""
+        
+        // 没有PIN或已验证过PIN，直接打开
+        if (savedPin.isEmpty() || didShowPin) {
+            startActivity(Intent(this, SettingsActivity::class.java))
+            return
         }
-        updateStatus()
-        updateStatusSoon()
+        
+        // 有PIN且未验证，先验证
+        showEnterPinDialog(savedPin) {
+            didShowPin = true
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
 
     private fun attemptStartVpnService() {
@@ -268,15 +298,17 @@ class MainActivity : AppCompatActivity() {
         }
         val savedPin = appPrefs.getString("pin", "") ?: ""
 
-        if (!didShowPin && savedPin.isNotEmpty()) {
-            showEnterPinDialog(savedPin) {
-                didShowPin = true
-                if (current) stopVpn() else startVpn()
-            }
+        // 没有PIN或已验证过PIN，直接执行操作
+        if (savedPin.isEmpty() || didShowPin) {
+            if (current) stopVpn() else startVpn()
             return
         }
 
-        if (current) stopVpn() else startVpn()
+        // 有PIN且未验证，先验证
+        showEnterPinDialog(savedPin) {
+            didShowPin = true
+            if (current) stopVpn() else startVpn()
+        }
     }
 
     private fun startVpn() {
