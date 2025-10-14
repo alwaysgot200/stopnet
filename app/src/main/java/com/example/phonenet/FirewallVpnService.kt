@@ -27,6 +27,8 @@ class FirewallVpnService : VpnService() {
     private var workerThread: Thread? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        android.util.Log.d("FirewallVpnService", "onStartCommand - action: ${intent?.action}")
+        
         // 处理显式 STOP：及时广播 false，清理资源并停止服务，避免重启
         if (intent?.action == ACTION_STOP_VPN) {
             try {
@@ -103,7 +105,10 @@ class FirewallVpnService : VpnService() {
                 .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             dps.edit().putBoolean("vpn_running", true).apply()
             dps.edit().putBoolean("vpn_user_stop", false).apply()
-        } catch (_: Exception) { }
+            android.util.Log.d("FirewallVpnService", "已更新运行状态")
+        } catch (e: Exception) {
+            android.util.Log.e("FirewallVpnService", "更新状态失败: ${e.message}")
+        }
 
         val broadcastIntent = Intent(ACTION_VPN_STATE_CHANGED).apply {
             setPackage(packageName)
@@ -112,6 +117,12 @@ class FirewallVpnService : VpnService() {
         sendBroadcast(broadcastIntent)
         // 同步内存态
         VpnStateStore.set(true)
+        
+        // 启动后安排定期检查Job，保证服务持续运行
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            scheduleJobRestart()
+        }
+        android.util.Log.d("FirewallVpnService", "VPN服务启动完成")
 
         return START_STICKY
     }
