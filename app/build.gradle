@@ -37,9 +37,10 @@ android {
     }
 
     // 原 ksPath/ksPass/keyAlias/keyPass 改名，避免与 DSL 属性/方法冲突
-    def signingStorePath   = System.getenv("ANDROID_KEYSTORE_PATH")
-            ?: (project.findProperty("ANDROID_KEYSTORE_PATH") ?: signingProps.getProperty("storeFile")
-            ?: new File(rootProject.projectDir, "keytool/stopnet.jks").absolutePath)
+    def envStore = System.getenv("ANDROID_KEYSTORE_PATH")
+    def defaultStore = new File(rootProject.projectDir, "keytool/stopnet.jks").absolutePath
+    def propStore = (project.findProperty("ANDROID_KEYSTORE_PATH") ?: signingProps.getProperty("storeFile") ?: defaultStore)
+    def signingStorePath   = (envStore && new File(envStore).exists()) ? envStore : propStore
     def signingStorePassword   = System.getenv("ANDROID_KEYSTORE_PASSWORD")
             ?: (project.findProperty("ANDROID_KEYSTORE_PASSWORD") ?: signingProps.getProperty("storePassword"))
     def signingKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
@@ -140,12 +141,18 @@ tasks.register("startEmulator") {
             standardOutput = out
             ignoreExitValue = true
         }
-        def hasDevice = out.toString().readLines().any { it.trim().endsWith("\tdevice") }
+        // 同时接受 device/offline/unauthorized 三种状态，避免误判
+        def hasDevice = out.toString().readLines().any { it =~ /\t(device|offline|unauthorized)$/ }
         if (hasDevice) {
             println("Device already connected; skip emulator start.")
         } else {
+            // 校验 emulator 可执行文件路径
+            def emuFile = new File(emulatorExe)
+            if (!emuFile.exists()) {
+                println("Emulator executable not found at '${emulatorExe}'. Please set -PemulatorExe or ensure SDK path.")
+                return
+            }
             println("No device detected; starting emulator: ${avdName}")
-            // 后台启动避免阻塞 Gradle
             exec {
                 commandLine(
                     "cmd", "/c", "start", "", "\"${emulatorExe}\"",
@@ -156,6 +163,8 @@ tasks.register("startEmulator") {
                     "-no-boot-anim"
                 )
             }
+            // 给进程2秒钟启动，降低 ddms 竞态导致的“卡住”错觉
+            Thread.sleep(2000)
         }
     }
 }
@@ -176,7 +185,8 @@ tasks.register("waitForDevice") {
                 standardOutput = devicesOut
                 ignoreExitValue = true
             }
-            def connected = devicesOut.toString().readLines().any { it.trim().endsWith("\tdevice") }
+            // 接受 device/offline/unauthorized，随后再检查 boot_completed
+            def connected = devicesOut.toString().readLines().any { it =~ /\t(device|offline|unauthorized)$/ }
 
             if (connected) {
                 def bootOut = new ByteArrayOutputStream()
