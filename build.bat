@@ -1,15 +1,14 @@
 @echo off
-chcp 65001 > nul
-setlocal
-
-REM 支持传入数字参数直接执行（如：build.bat 5）
-if not "%~1"=="" (
-    set "OPT=%~1"
-    goto handle
-)
+chcp 65001 >nul
+title StopNet Build Tool
+:: 保存原始目录
+set "ORIGINAL_DIR=%CD%"
 
 :menu
-echo 请选择要执行的命令：
+cls
+echo ===================================
+echo      StopNet Build Tool
+echo ===================================
 echo  1) gradlew.bat clean
 echo  2) gradlew.bat build
 echo  3) gradlew.bat test
@@ -19,60 +18,64 @@ echo  6) gradlew.bat installRelease
 echo  7) gradlew.bat assembleRelease
 echo  8) adb stop app
 echo  9) adb -e emu kill
-set /p OPT="输入数字并回车： "
+echo  0) exit
+echo ===================================
+:: 输入改为 set /p，仿照 ref.bat；任务完成后回到菜单
+choice /c 0123456789 /n /m "输入数字并回车（0 退出）： "
 
-:handle
-if "%OPT%"=="1" goto do_clean
-if "%OPT%"=="2" goto do_build
-if "%OPT%"=="3" goto do_test
-if "%OPT%"=="4" goto do_installDebugAndLogcat
-if "%OPT%"=="5" goto do_assembleDebug
-if "%OPT%"=="6" goto do_installRelease
-if "%OPT%"=="7" goto do_assembleRelease
-if "%OPT%"=="8" goto do_stopApp
-if "%OPT%"=="9" goto do_killEmulator
+if errorlevel 10 goto do_killEmulator
+if errorlevel 9 goto do_stopApp
+if errorlevel 8 goto do_assembleRelease
+if errorlevel 7 goto do_installRelease
+if errorlevel 6 goto do_assembleDebug
+if errorlevel 5 goto do_installDebugAndLogcat
+if errorlevel 4 goto do_test
+if errorlevel 3 goto do_build
+if errorlevel 2 goto do_clean
+if errorlevel 1 goto end
 
-echo 无效输入：%OPT%
-set "EXIT_CODE=1"
-goto end
+goto menu
 
 :do_clean
 .\gradlew.bat clean
-goto end
+goto done
 
 :do_build
 .\gradlew.bat build
-goto end
+goto done
 
 :do_test
 .\gradlew.bat test
-goto end
+goto done
 
 :do_installDebugAndLogcat
 .\gradlew.bat installDebugAndLogcat
-goto end
+goto done
 
 :do_assembleDebug
 .\gradlew.bat assembleDebug
-goto end
+goto done
 
 :do_installRelease
 .\gradlew.bat installRelease
-goto end
+goto done
 
 :do_assembleRelease
-.\u200cgradlew.bat assembleRelease
-goto end
+.\gradlew.bat assembleRelease
+goto done
 
 :do_stopApp
 adb shell am force-stop com.example.stopnet
-goto end
+goto done
 
 :do_killEmulator
 adb -e emu kill
-goto end
+goto done
+
+:done
+pause >nul
+:: 回到菜单，清屏重画
+goto menu
 
 :end
-REM 透传最后一条命令的退出码
-set "EXIT_CODE=%ERRORLEVEL%"
-endlocal & exit /b %EXIT_CODE%
+endlocal & exit /b %ERRORLEVEL%

@@ -42,6 +42,9 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
+        // 初始化前后台监听（仅注册一次）
+        PinLockManager.init()
+
         etParentEmail = findViewById(R.id.etParentEmail)
         rvApps = findViewById(R.id.rvApps)
         btnOpenVpnSettings = findViewById(R.id.btnOpenVpnSettings)
@@ -128,7 +131,7 @@ class SettingsActivity : AppCompatActivity() {
         loadLaunchableApps()
     }
 
-    private fun showEnterPinDialog(saved: String) {
+    private fun showEnterPinDialog(saved: String, onSuccess: (() -> Unit)? = null) {
         isPinDialogShowing = true
         val input = EditText(this)
         input.hint = getString(R.string.enter_pin)
@@ -141,6 +144,8 @@ class SettingsActivity : AppCompatActivity() {
                 if (entered != saved) {
                     android.widget.Toast.makeText(this, getString(R.string.wrong_pin), android.widget.Toast.LENGTH_SHORT).show()
                     finish()
+                } else {
+                    onSuccess?.invoke()
                 }
             }
             .setNegativeButton("Cancel") { _, _ -> finish() }
@@ -149,7 +154,7 @@ class SettingsActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showSetPinDialog() {
+    private fun showSetPinDialog(onSuccess: (() -> Unit)? = null) {
         isPinDialogShowing = true
         val input1 = EditText(this)
         input1.hint = getString(R.string.set_pin)
@@ -170,6 +175,7 @@ class SettingsActivity : AppCompatActivity() {
                 val p2 = input2.text?.toString()?.trim() ?: ""
                 if (p1.isNotEmpty() && p1 == p2) {
                     prefs.edit().putString("pin", p1).apply()
+                    onSuccess?.invoke()
                 } else {
                     android.widget.Toast.makeText(this, getString(R.string.wrong_pin), android.widget.Toast.LENGTH_SHORT).show()
                     finish()

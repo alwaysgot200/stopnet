@@ -94,6 +94,9 @@ class MainActivity : AppCompatActivity() {
         updateBatteryButtonState()
         updateStatus()
 
+        // 初始化前后台监听（仅注册一次）
+        PinLockManager.init()
+
         // 若为"从开机广播拉起"的场景，进行自动化处理
         val fromBoot = intent?.getBooleanExtra("from_boot", false) == true
         if (fromBoot) {
@@ -147,6 +150,26 @@ class MainActivity : AppCompatActivity() {
         updateStatus()
         updateAutoStartButtonState()
         updateBatteryButtonState()
+
+        // 应用从后台回到前台时，强制进行一次 PIN 验证
+        PinLockManager.init()
+        if (PinLockManager.peekRequire() && !isPinDialogShowing) {
+            val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
+            val saved = prefs.getString("pin", null)
+            if (saved.isNullOrEmpty()) {
+                showSetPinDialog {
+                    didShowPin = true
+                    PinLockManager.consumeRequire()
+                    updateStatus()
+                }
+            } else {
+                showEnterPinDialog(saved) {
+                    didShowPin = true
+                    PinLockManager.consumeRequire()
+                    updateStatus()
+                }
+            }
+        }
     }
 
     override fun onDestroy() {
