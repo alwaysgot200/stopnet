@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 固定方块尺寸：以当前竖屏视觉为基准，后续可按需调整 -->
+    <dimen name="tile_size">152dp</dimen>
+    <!-- 固定方块之间的间隙（同时用于横向与纵向） -->
+    <dimen name="tile_gap">8dp</dimen>
+</resources>

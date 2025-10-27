@@ -15,6 +15,7 @@ import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.flexbox.FlexboxLayout
 
 class MainActivity : AppCompatActivity() {
 
@@ -91,6 +92,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // 取三行 Flexbox 容器以便设置左右动态边距
+        val rowAppSettings = findViewById<FlexboxLayout>(R.id.rowAppSettings)
+        val rowControl = findViewById<FlexboxLayout>(R.id.rowControl)
+        val rowPreferences = findViewById<FlexboxLayout>(R.id.rowPreferences)
+
+        applyDynamicRowPadding(rowAppSettings)
+        applyDynamicRowPadding(rowControl)
+        applyDynamicRowPadding(rowPreferences)
+
         // 绑定新的方块入口
         tileStartControl = findViewById(R.id.tileStartControl)
         tileOpenSettings = findViewById(R.id.tileOpenSettings)
@@ -138,6 +148,46 @@ class MainActivity : AppCompatActivity() {
 
         // 正常启动路径：先检查是否需要自动启动VPN（无需PIN），然后再验证PIN进入主界面
         handleNormalAppStart()
+    }
+
+    /**
+     * 按需求计算左右动态间距：
+     * paddingX = (行宽 - N * 方块宽 - (N - 1) * 间隙宽) / 2
+     * 其中 N 为当前行可容纳的最大列数（不超过子项数量）。
+     */
+    private fun applyDynamicRowPadding(row: FlexboxLayout) {
+        // 在布局完成后计算一次
+        row.post {
+            val tileSizePx = resources.getDimensionPixelSize(R.dimen.tile_size)
+            val gapPx = resources.getDimensionPixelSize(R.dimen.tile_gap)
+            val rowWidth = row.width
+            val childCount = row.childCount
+            if (rowWidth <= 0 || childCount <= 0) return@post
+
+            // 以屏幕可容纳的最大列数为基准，统一各行的左右边距
+            // 保守列数：columns = floor((rowWidth - gap) / (tileSize + gap))
+            val columns = (((rowWidth - gapPx)) / (tileSizePx + gapPx)).coerceAtLeast(1)
+            val paddingX = ((rowWidth - columns * tileSizePx - (columns - 1) * gapPx) / 2)
+                .coerceAtLeast(0)
+            // 设置左右对称边距；保留现有上下 padding
+            row.setPadding(paddingX, row.paddingTop, paddingX, row.paddingBottom)
+        }
+
+        // 监听尺寸改变（如横竖屏切换），重新计算
+        row.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            v.post {
+                val tileSizePx = resources.getDimensionPixelSize(R.dimen.tile_size)
+                val gapPx = resources.getDimensionPixelSize(R.dimen.tile_gap)
+                val rowWidth = row.width
+                val childCount = row.childCount
+                if (rowWidth <= 0 || childCount <= 0) return@post
+                // 保守列数：columns = floor((rowWidth - gap) / (tileSize + gap))
+                val columns = (((rowWidth - gapPx)) / (tileSizePx + gapPx)).coerceAtLeast(1)
+                val paddingX = ((rowWidth - columns * tileSizePx - (columns - 1) * gapPx) / 2)
+                    .coerceAtLeast(0)
+                row.setPadding(paddingX, row.paddingTop, paddingX, row.paddingBottom)
+            }
+        }
     }
 
     private fun openSystemVpnSettings() {

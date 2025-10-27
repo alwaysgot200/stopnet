@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- 同时作为横向与纵向的间隙厚度 -->
+    <size
+        android:width="@dimen/tile_gap"
+        android:height="@dimen/tile_gap" />
+    <solid android:color="@android:color/transparent" />
+</shape>

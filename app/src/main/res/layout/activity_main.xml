@@ -9,7 +9,8 @@
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp">
 
         <!-- 第一栏：预设置 -->
         <TextView
@@ -30,15 +31,16 @@
             android:layout_marginTop="12dp"
             app:flexWrap="wrap"
             app:justifyContent="flex_start"
-            app:alignItems="flex_start">
+            app:alignItems="flex_start"
+            app:showDivider="middle"
+            app:dividerDrawable="@drawable/flexbox_item_divider">
 
             <!-- 方块：忽略电池优化 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tileBattery"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_neutral"
                 android:clickable="true"
                 android:focusable="true"
@@ -73,10 +75,9 @@
             <!-- 方块：允许自动启动 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tilePermissions"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_neutral"
                 android:clickable="true"
                 android:focusable="true"
@@ -111,10 +112,9 @@
             <!-- 方块：VPN设置 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tileOpenVpnSettings"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_purple"
                 android:clickable="true"
                 android:focusable="true"
@@ -167,15 +167,16 @@
             android:layout_marginTop="12dp"
             app:flexWrap="wrap"
             app:justifyContent="flex_start"
-            app:alignItems="flex_start">
+            app:alignItems="flex_start"
+            app:showDivider="middle"
+            app:dividerDrawable="@drawable/flexbox_item_divider">
 
             <!-- 方块：启动/停止管控 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tileStartControl"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_neutral"
                 android:clickable="true"
                 android:focusable="true"
@@ -229,15 +230,16 @@
             android:layout_marginTop="12dp"
             app:flexWrap="wrap"
             app:justifyContent="flex_start"
-            app:alignItems="flex_start">
+            app:alignItems="flex_start"
+            app:showDivider="middle"
+            app:dividerDrawable="@drawable/flexbox_item_divider">
 
             <!-- 方块：APP白名单 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tileOpenSettings"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_purple"
                 android:clickable="true"
                 android:focusable="true"
@@ -272,10 +274,9 @@
             <!-- 方块：设置邮箱 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tileOpenEmailSettings"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_purple"
                 android:clickable="true"
                 android:focusable="true"
@@ -310,10 +311,9 @@
             <!-- 方块：一般设置 -->
             <com.example.stopnet.ui.SquareTile
                 android:id="@+id/tileOpenGeneralSettings"
-                android:layout_width="0dp"
+                android:layout_width="@dimen/tile_size"
                 android:layout_height="wrap_content"
-                app:layout_flexBasisPercent="42%"
-                android:layout_margin="8dp"
+                android:layout_margin="0dp"
                 android:background="@drawable/tile_bg_purple"
                 android:clickable="true"
                 android:focusable="true"

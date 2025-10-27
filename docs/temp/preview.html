@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>方块布局预览</title>
+    <style>
+      :root {
+        /* 与 Android dimens 对齐的演示值 */
+        --tile-size: 152; /* dp ~ px */
+        --gap: 8;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+      }
+      h2 {
+        margin: 16px;
+      }
+      .row {
+        box-sizing: border-box;
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: calc(var(--gap) * 1px);
+        padding-top: 12px;
+        padding-bottom: 12px;
+        background: #fafafa;
+        border-top: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+      }
+      .tile {
+        width: calc(var(--tile-size) * 1px);
+        height: calc(var(--tile-size) * 1px);
+        background: #673ab7;
+        border-radius: 8px;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+      }
+      .tile.neutral {
+        background: #607d8b;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>预览：固定方块尺寸 + 固定间隙 + 动态左右边距</h2>
+
+    <div id="rowAppSettings" class="row">
+      <div class="tile neutral">忽略电池</div>
+      <div class="tile neutral">允许自启</div>
+      <div class="tile">VPN设置</div>
+    </div>
+
+    <div id="rowControl" class="row">
+      <div class="tile neutral">启动/停止</div>
+    </div>
+
+    <div id="rowPreferences" class="row">
+      <div class="tile">白名单</div>
+      <div class="tile">邮箱设置</div>
+      <div class="tile">一般设置</div>
+    </div>
+
+    <script>
+      function applyDynamicPadding(row) {
+        const tileSize = Number(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--tile-size"
+          )
+        );
+        const gap = Number(
+          getComputedStyle(document.documentElement).getPropertyValue("--gap")
+        );
+        const rowWidth = row.clientWidth; // 屏幕宽下的容器宽
+        const tiles = Array.from(row.children).filter((el) =>
+          el.classList.contains("tile")
+        );
+        const childCount = tiles.length;
+        if (rowWidth <= 0 || childCount === 0) return;
+        // 以最大可容纳列数为基准，统一左/右边距
+        // 保守列数：columns = floor((rowWidth - gap) / (tileSize + gap))
+        const columns = Math.max(
+          1,
+          Math.floor((rowWidth - gap) / (tileSize + gap))
+        );
+        const paddingX = Math.max(
+          0,
+          Math.floor((rowWidth - columns * tileSize - (columns - 1) * gap) / 2)
+        );
+        row.style.paddingLeft = paddingX + "px";
+        row.style.paddingRight = paddingX + "px";
+      }
+
+      const rows = [
+        document.getElementById("rowAppSettings"),
+        document.getElementById("rowControl"),
+        document.getElementById("rowPreferences"),
+      ];
+
+      function refreshAll() {
+        rows.forEach(applyDynamicPadding);
+      }
+
+      window.addEventListener("resize", refreshAll);
+      window.addEventListener("load", refreshAll);
+      refreshAll();
+    </script>
+  </body>
+  <html></html>
+</html>
