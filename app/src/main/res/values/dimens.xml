@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 固定方块尺寸：以当前竖屏视觉为基准，后续可按需调整 -->
-    <dimen name="tile_size">152dp</dimen>
+    <!-- 方块尺寸加大一个间隙的大小：152dp + 8dp = 160dp -->
+    <dimen name="tile_size">160dp</dimen>
     <!-- 固定方块之间的间隙（同时用于横向与纵向） -->
     <dimen name="tile_gap">8dp</dimen>
+    <!-- 方块内图标尺寸（原为 36dp，这里翻倍） -->
+    <dimen name="tile_icon_size">72dp</dimen>
 </resources>

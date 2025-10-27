@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="预设置"
+            android:text=" 预设置"
             android:textSize="18sp"
             android:textStyle="bold"
             android:paddingBottom="6dp"/>
@@ -52,8 +52,8 @@
                     android:gravity="top|center_horizontal"
                     android:padding="12dp">
                     <ImageView
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_lock_idle_charging"
                         app:tint="@android:color/white"/>
                     <Space
@@ -89,8 +89,8 @@
                     android:gravity="top|center_horizontal"
                     android:padding="12dp">
                     <ImageView
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_menu_manage"
                         app:tint="@android:color/white"/>
                     <Space
@@ -126,8 +126,8 @@
                     android:gravity="top|center_horizontal"
                     android:padding="12dp">
                     <ImageView
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_menu_preferences"
                         app:tint="@android:color/white"/>
                     <Space
@@ -151,7 +151,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="操控管理"
+            android:text=" 操控管理"
             android:textSize="18sp"
             android:textStyle="bold"
             android:paddingTop="16dp"
@@ -189,8 +189,8 @@
                     android:padding="12dp">
                     <ImageView
                         android:id="@+id/tileStartControlIcon"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_media_play"
                         app:tint="@android:color/white"/>
                     <Space
@@ -214,7 +214,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="偏好设置"
+            android:text=" 偏好设置"
             android:textSize="18sp"
             android:textStyle="bold"
             android:paddingTop="16dp"
@@ -251,8 +251,8 @@
                     android:gravity="top|center_horizontal"
                     android:padding="12dp">
                     <ImageView
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_menu_preferences"
                         app:tint="@android:color/white"/>
                     <Space
@@ -288,8 +288,8 @@
                     android:gravity="top|center_horizontal"
                     android:padding="12dp">
                     <ImageView
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_dialog_email"
                         app:tint="@android:color/white"/>
                     <Space
@@ -325,8 +325,8 @@
                     android:gravity="top|center_horizontal"
                     android:padding="12dp">
                     <ImageView
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
                         android:src="@android:drawable/ic_menu_manage"
                         app:tint="@android:color/white"/>
                     <Space
