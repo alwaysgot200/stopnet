@@ -70,44 +70,8 @@
                         android:layout_marginTop="6dp"
                         android:layout_marginBottom="10dp"/>
                 </LinearLayout>
-            </com.example.stopnet.ui.SquareTile>
-            
-            <!-- 方块：帮助 Help -->
-            <com.example.stopnet.ui.SquareTile
-                android:id="@+id/tileHelp"
-                android:layout_width="@dimen/tile_size"
-                android:layout_height="wrap_content"
-                android:layout_margin="0dp"
-                android:background="@drawable/tile_bg_purple"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground">
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="top|center_horizontal"
-                    android:padding="12dp">
-                    <ImageView
-                        android:layout_width="@dimen/tile_icon_size"
-                        android:layout_height="@dimen/tile_icon_size"
-                        android:src="@android:drawable/ic_menu_help"
-                        app:tint="@android:color/white"/>
-                    <Space
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"/>
-                    <TextView
-                        android:id="@+id/tileHelpLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="帮助"
-                        android:textSize="14sp"
-                        android:textColor="@android:color/white"
-                        android:layout_marginTop="6dp"
-                        android:layout_marginBottom="10dp"/>
-                </LinearLayout>
-            </com.example.stopnet.ui.SquareTile>
+            </com.example.stopnet.ui.SquareTile>         
+           
 
             <!-- 方块：允许自动启动 -->
             <com.example.stopnet.ui.SquareTile
@@ -381,7 +345,42 @@
                         android:layout_marginBottom="10dp"/>
                 </LinearLayout>
             </com.example.stopnet.ui.SquareTile>
-            
+             <!-- 方块：帮助 Help -->
+            <com.example.stopnet.ui.SquareTile
+                android:id="@+id/tileHelp"
+                android:layout_width="@dimen/tile_size"
+                android:layout_height="wrap_content"
+                android:layout_margin="0dp"
+                android:background="@drawable/tile_bg_purple"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="top|center_horizontal"
+                    android:padding="12dp">
+                    <ImageView
+                        android:layout_width="@dimen/tile_icon_size"
+                        android:layout_height="@dimen/tile_icon_size"
+                        android:src="@android:drawable/ic_menu_help"
+                        app:tint="@android:color/white"/>
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"/>
+                    <TextView
+                        android:id="@+id/tileHelpLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="帮助"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/white"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginBottom="10dp"/>
+                </LinearLayout>
+            </com.example.stopnet.ui.SquareTile>
         </com.google.android.flexbox.FlexboxLayout>
     </LinearLayout>
 </ScrollView>
