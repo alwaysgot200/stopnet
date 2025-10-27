@@ -3,7 +3,7 @@
     <string name="vpn_permission_required">需要开启 VPN 权限来进行网络管控</string>
     <string name="start_vpn">启动管控</string>
     <string name="stop_vpn">停止管控</string>
-    <string name="open_settings">打开设置</string>
+    <string name="open_settings">APP白名单</string>
     <string name="enter_pin">请输入设置 PIN</string>
     <string name="set_pin">设置 PIN</string>
     <string name="confirm_pin">确认 PIN</string>
@@ -25,8 +25,9 @@
     <string name="smtp_test">发送测试邮件</string>
     <string name="smtp_test_subject">【StopNet】SMTP 配置测试</string>
     <string name="smtp_test_body">这是一封测试邮件，表明 SMTP 配置工作正常。</string>
-    <string name="ignore_battery_optimization">忽略电池优化（提升稳定性）</string>
+    <string name="ignore_battery_optimization">忽略电池优化</string>
     <string name="battery_opt_desc">请允许忽略电池优化以减少服务被系统回收</string>
-    <string name="allow_auto_start">允许自动启动（提升稳定性）</string>
-    <string name="default_auto_start_vpn">默认自动启动 VPN（每次重启 APP 自动开启）</string>
+    <string name="allow_auto_start">允许自动启动</string>
+    <string name="default_auto_start_vpn">默认后台自启动</string>
+    <string name="general_settings">一般设置</string>
 </resources>

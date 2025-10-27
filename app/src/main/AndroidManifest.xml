@@ -61,6 +61,14 @@
             android:name="com.example.stopnet.SettingsActivity"
             android:exported="false" />
 
+        <activity
+            android:name="com.example.stopnet.EmailSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.stopnet.GeneralSettingsActivity"
+            android:exported="false" />
+
         <service
             android:name="com.example.stopnet.FirewallVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"

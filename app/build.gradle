@@ -120,6 +120,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'com.google.android.flexbox:flexbox:3.0.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
     implementation 'androidx.lifecycle:lifecycle-process:2.8.4'   // 新增：提供 ProcessLifecycleOwner
     implementation 'com.sun.mail:android-mail:1.6.7'
@@ -187,9 +188,15 @@ tasks.register("startEmulator") {
         }
         
         println("[startEmulator] Starting emulator: ${avdName}")
-        
+
         // 使用 ProcessBuilder 异步启动，并重定向输出避免缓冲区阻塞
-        def logFile = new File(project.buildDir, "emulator-${avdName}.log")
+        // 注意：Windows 下若日志文件位于 build 目录，会导致 gradlew clean 删除失败（文件句柄被占用）。
+        // 因此将日志写到项目根目录下的 .emulator_logs，以避免影响 clean。
+        def logDir = new File(project.rootDir, ".emulator_logs")
+        if (!logDir.exists()) {
+            try { logDir.mkdirs() } catch (Exception ignore) {}
+        }
+        def logFile = new File(logDir, "emulator-${avdName}.log")
         def processBuilder = new ProcessBuilder(
             emulatorExe,
             "-avd", avdName,

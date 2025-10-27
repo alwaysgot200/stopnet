@@ -18,10 +18,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var btnToggleVpn: Button
-    private lateinit var btnSettings: Button
-    private lateinit var btnIgnoreBattery: Button
-    private lateinit var btnAutoStart: Button
+    // 替换旧按钮为方块入口视图
+    private lateinit var tileStartControl: android.view.View
+    private lateinit var tileOpenSettings: android.view.View
+    private lateinit var tileBattery: android.view.View
+    private lateinit var tilePermissions: android.view.View
+    private lateinit var tileOpenVpnSettings: android.view.View
+    private lateinit var tileOpenEmailSettings: android.view.View
+    private lateinit var tileOpenGeneralSettings: android.view.View
+    // 方块内部文案与图标
+    private lateinit var tileStartControlLabel: android.widget.TextView
+    private lateinit var tileStartControlIcon: android.widget.ImageView
+    private lateinit var tileBatteryLabel: android.widget.TextView
+    private lateinit var tilePermissionsLabel: android.widget.TextView
+    private lateinit var tileOpenSettingsLabel: android.widget.TextView
+    private lateinit var tileOpenVpnSettingsLabel: android.widget.TextView
+    private lateinit var tileOpenEmailSettingsLabel: android.widget.TextView
+    private lateinit var tileOpenGeneralSettingsLabel: android.widget.TextView
 
     // 使用新的 Activity Result API 替代 startActivityForResult
     private val prepareVpnLauncher = registerForActivityResult(
@@ -78,15 +91,32 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnToggleVpn = findViewById(R.id.btnToggleVpn)
-        btnSettings = findViewById(R.id.btnSettings)
-        btnIgnoreBattery = findViewById(R.id.btnIgnoreBattery)
-        btnAutoStart = findViewById(R.id.btnAutoStart)
+        // 绑定新的方块入口
+        tileStartControl = findViewById(R.id.tileStartControl)
+        tileOpenSettings = findViewById(R.id.tileOpenSettings)
+        tileBattery = findViewById(R.id.tileBattery)
+        tilePermissions = findViewById(R.id.tilePermissions)
+        tileOpenVpnSettings = findViewById(R.id.tileOpenVpnSettings)
+        tileOpenEmailSettings = findViewById(R.id.tileOpenEmailSettings)
+        tileOpenGeneralSettings = findViewById(R.id.tileOpenGeneralSettings)
+        // 绑定方块内部文案/图标
+        tileStartControlLabel = findViewById(R.id.tileStartControlLabel)
+        tileStartControlIcon = findViewById(R.id.tileStartControlIcon)
+        tileBatteryLabel = findViewById(R.id.tileBatteryLabel)
+        tilePermissionsLabel = findViewById(R.id.tilePermissionsLabel)
+        tileOpenSettingsLabel = findViewById(R.id.tileOpenSettingsLabel)
+        tileOpenVpnSettingsLabel = findViewById(R.id.tileOpenVpnSettingsLabel)
+        tileOpenEmailSettingsLabel = findViewById(R.id.tileOpenEmailSettingsLabel)
+        tileOpenGeneralSettingsLabel = findViewById(R.id.tileOpenGeneralSettingsLabel)
 
-        btnToggleVpn.setOnClickListener { toggleVpn() }
-        btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
-        btnIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
-        btnAutoStart.setOnClickListener { requestAutoStartPermission() }
+        // 点击事件绑定
+        tileStartControl.setOnClickListener { toggleVpn() }
+        tileOpenSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        tileOpenEmailSettings.setOnClickListener { startActivity(Intent(this, EmailSettingsActivity::class.java)) }
+        tileOpenGeneralSettings.setOnClickListener { startActivity(Intent(this, GeneralSettingsActivity::class.java)) }
+        tileBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
+        tilePermissions.setOnClickListener { requestAutoStartPermission() }
+        tileOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
 
         // 统一用 app 级偏好，仅用于回退读取
         appPrefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
@@ -108,6 +138,14 @@ class MainActivity : AppCompatActivity() {
 
         // 正常启动路径：先检查是否需要自动启动VPN（无需PIN），然后再验证PIN进入主界面
         handleNormalAppStart()
+    }
+
+    private fun openSystemVpnSettings() {
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_VPN_SETTINGS))
+        } catch (_: Exception) {
+            android.widget.Toast.makeText(this, "无法打开系统 VPN 设置", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     
@@ -413,20 +451,44 @@ class MainActivity : AppCompatActivity() {
                 .getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
             p1.getBoolean("vpn_running", false) || dps.getBoolean("vpn_running", false)
         }
-        btnToggleVpn.text = getString(if (isRunning) R.string.stop_vpn else R.string.start_vpn)
-        val bg = if (isRunning) "#F44336" else "#4CAF50"
-        btnToggleVpn.setBackgroundColor(android.graphics.Color.parseColor(bg))
-        btnToggleVpn.setTextColor(android.graphics.Color.WHITE)
+        // 运行中：红色背景，文案为“停止管控”，图标为暂停；未运行：绿色背景，文案为“启动管控”，图标为播放
+        if (isRunning) {
+            tileStartControl.setBackgroundResource(R.drawable.tile_bg_red)
+            tileStartControlLabel.text = getString(R.string.stop_vpn)
+            tileStartControlIcon.setImageResource(android.R.drawable.ic_media_pause)
+            tileStartControlIcon.setColorFilter(android.graphics.Color.WHITE)
+        } else {
+            tileStartControl.setBackgroundResource(R.drawable.tile_bg_green)
+            tileStartControlLabel.text = getString(R.string.start_vpn)
+            tileStartControlIcon.setImageResource(android.R.drawable.ic_media_play)
+            tileStartControlIcon.setColorFilter(android.graphics.Color.WHITE)
+        }
     }
 
     private fun updateBatteryButtonState() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             val pm = getSystemService(android.os.PowerManager::class.java)
             val ignored = pm?.isIgnoringBatteryOptimizations(packageName) == true
-            btnIgnoreBattery.text = getString(R.string.ignore_battery_optimization)
-            val bg = if (ignored) "#4CAF50" else "#F44336"
-            btnIgnoreBattery.setBackgroundColor(android.graphics.Color.parseColor(bg))
-            btnIgnoreBattery.setTextColor(android.graphics.Color.WHITE)
+            if (ignored) {
+                tileBattery.setBackgroundResource(R.drawable.tile_bg_green)
+                // 简洁文案即可，保留原始提示
+                tileBatteryLabel.text = getString(R.string.ignore_battery_optimization)
+            } else {
+                tileBattery.setBackgroundResource(R.drawable.tile_bg_red)
+                tileBatteryLabel.text = getString(R.string.ignore_battery_optimization)
+            }
+        }
+    }
+
+    private fun updateAutoStartButtonState() {
+        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
+        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false)
+        if (autoStartEnabled) {
+            tilePermissions.setBackgroundResource(R.drawable.tile_bg_green)
+            tilePermissionsLabel.text = getString(R.string.allow_auto_start)
+        } else {
+            tilePermissions.setBackgroundResource(R.drawable.tile_bg_red)
+            tilePermissionsLabel.text = getString(R.string.allow_auto_start)
         }
     }
 
@@ -463,7 +525,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
             android.widget.Toast.makeText(this, "无法自动打开自启动设置，请手动查找", android.widget.Toast.LENGTH_SHORT).show()
         } catch (_: Exception) {
-            android.widget.Toast.makeText(this, "无法打开设置，请手动操作", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(this, "无法APP白名单，请手动操作", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -622,18 +684,7 @@ class MainActivity : AppCompatActivity() {
         imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun updateAutoStartButtonState() {
-        val prefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
-        val autoStartEnabled = prefs.getBoolean("auto_start_on_boot", false)
-
-        if (autoStartEnabled) {
-            btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorGreen))
-            btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        } else {
-            btnAutoStart.setBackgroundColor(ContextCompat.getColor(this, R.color.colorRed))
-            btnAutoStart.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        }
-    }
+    /* duplicate updateAutoStartButtonState removed; see the implementation above using tilePermissions */
 
     private fun showSetPinDialog(onSuccess: () -> Unit) {
         if (isPinDialogShowing) return

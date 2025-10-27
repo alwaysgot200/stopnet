@@ -8,3 +8,36 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24"
     }
 }
+
+// 安全清理：在模拟器运行时跳过可能被占用的日志文件
+tasks.register('cleanSafe') {
+    group = 'build'
+    description = 'Clean build outputs while skipping emulator log files to avoid Windows file-locks.'
+    doLast {
+        def cleanOne = { File dir ->
+            if (dir == null || !dir.exists()) return
+            println "[cleanSafe] Cleaning ${dir.absolutePath} ..."
+            try {
+                // 删除除 emulator-*.log 之外的所有内容
+                def tree = fileTree(dir: dir) {
+                    include '**/*'
+                    exclude '**/emulator-*.log'
+                }
+                project.delete(tree)
+                // 最后尝试删除空目录；若仍有锁定文件会失败，忽略即可
+                try {
+                    project.delete(dir)
+                } catch (Exception e2) {
+                    println "[cleanSafe] Skip deleting ${dir.name} (locked file remains)."
+                }
+            } catch (Exception e) {
+                println "[cleanSafe] WARNING: ${e.message}"
+            }
+        }
+
+        // 根工程与所有子工程的 build 目录都处理
+        cleanOne(rootProject.buildDir)
+        subprojects.each { cleanOne(it.buildDir) }
+        println "[cleanSafe] Done. Emulator logs preserved; stop emulator to remove them."
+    }
+}

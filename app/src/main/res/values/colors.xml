@@ -2,4 +2,5 @@
 <resources>
     <color name="colorGreen">#4CAF50</color>
     <color name="colorRed">#F44336</color>
+    <color name="dividerColor">#DDDDDD</color>
 </resources>

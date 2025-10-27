@@ -9,7 +9,7 @@ cls
 echo ===================================
 echo      StopNet Build Tool
 echo ===================================
-echo  1) gradlew.bat clean
+echo  1) gradlew.bat cleanSafe
 echo  2) gradlew.bat build
 echo  3) gradlew.bat test
 echo  4) gradlew.bat installDebugAndLogcat
@@ -37,31 +37,42 @@ if errorlevel 1 goto end
 goto menu
 
 :do_clean
-.\gradlew.bat clean
+call .\gradlew.bat cleanSafe
 goto done
 
 :do_build
-.\gradlew.bat build
+call .\gradlew.bat cleanSafe
+call .\gradlew.bat build
 goto done
 
 :do_test
-.\gradlew.bat test
+call .\gradlew.bat cleanSafe
+call .\gradlew.bat build
+call .\gradlew.bat test
 goto done
 
 :do_installDebugAndLogcat
-.\gradlew.bat installDebugAndLogcat
+call .\gradlew.bat cleanSafe
+call .\gradlew.bat build
+call .\gradlew.bat installDebugAndLogcat
 goto done
 
 :do_assembleDebug
-.\gradlew.bat assembleDebug
+call .\gradlew.bat cleanSafe
+call .\gradlew.bat build
+call .\gradlew.bat assembleDebug
 goto done
 
 :do_installRelease
-.\gradlew.bat installRelease
+call .\gradlew.bat cleanSafe
+call .\gradlew.bat build
+call .\gradlew.bat installRelease
 goto done
 
 :do_assembleRelease
-.\gradlew.bat assembleRelease
+call .\gradlew.bat cleanSafe
+call .\gradlew.bat build
+call .\gradlew.bat assembleRelease
 goto done
 
 :do_stopApp

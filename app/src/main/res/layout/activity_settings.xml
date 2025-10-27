@@ -10,89 +10,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- 新增：默认自动启动 VPN 开关（仅控制 APP 启动） -->
-        <Switch
-            android:id="@+id/swDefaultAutoStartVpn"
-            android:text="@string/default_auto_start_vpn"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+        <!-- 默认自动启动 VPN 开关已移至“一般设置”页面 -->
 
-        <Button
-            android:id="@+id/btnOpenVpnSettings"
-            android:text="打开系统 VPN 设置（建议启用始终开启，不启用锁定）"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
+        <!-- 原“VPN设置”按钮已迁移至主界面第一栏的方块入口 -->
 
-        <!-- 下面是原有内容，全部放入 LinearLayout 中 -->
-
-        <EditText
-            android:id="@+id/etParentEmail"
-            android:hint="@string/parent_email"
-            android:inputType="textEmailAddress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" />
-
-        <TextView
-            android:id="@+id/tvSmtpTitle"
-            android:text="@string/smtp_settings"
-            android:textStyle="bold"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" />
-
-        <EditText
-            android:id="@+id/etSmtpHost"
-            android:hint="@string/smtp_host"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/etSmtpPort"
-            android:hint="@string/smtp_port"
-            android:inputType="number"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Switch
-            android:id="@+id/swSmtpSsl"
-            android:text="@string/smtp_ssl"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Switch
-            android:id="@+id/swSmtpTls"
-            android:text="@string/smtp_tls"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/etSmtpUser"
-            android:hint="@string/smtp_user"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/etSmtpPass"
-            android:hint="@string/smtp_pass"
-            android:inputType="textPassword"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/etSmtpFrom"
-            android:hint="@string/smtp_from"
-            android:inputType="textEmailAddress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/btnTestSmtp"
-            android:text="@string/smtp_test"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" />
+        <!-- 邮箱相关设置已拆分至单独页面 EmailSettingsActivity -->
 
         <TextView
             android:id="@+id/tvWhitelistTitle"
