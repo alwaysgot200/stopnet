@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tileOpenVpnSettings: android.view.View
     private lateinit var tileOpenEmailSettings: android.view.View
     private lateinit var tileOpenGeneralSettings: android.view.View
+    private lateinit var tileHelp: android.view.View
     // 方块内部文案与图标
     private lateinit var tileStartControlLabel: android.widget.TextView
     private lateinit var tileStartControlIcon: android.widget.ImageView
@@ -36,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tileOpenVpnSettingsLabel: android.widget.TextView
     private lateinit var tileOpenEmailSettingsLabel: android.widget.TextView
     private lateinit var tileOpenGeneralSettingsLabel: android.widget.TextView
+    private lateinit var tileHelpLabel: android.widget.TextView
 
     // 使用新的 Activity Result API 替代 startActivityForResult
     private val prepareVpnLauncher = registerForActivityResult(
@@ -109,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         tileOpenVpnSettings = findViewById(R.id.tileOpenVpnSettings)
         tileOpenEmailSettings = findViewById(R.id.tileOpenEmailSettings)
         tileOpenGeneralSettings = findViewById(R.id.tileOpenGeneralSettings)
+        tileHelp = findViewById(R.id.tileHelp)
         // 绑定方块内部文案/图标
         tileStartControlLabel = findViewById(R.id.tileStartControlLabel)
         tileStartControlIcon = findViewById(R.id.tileStartControlIcon)
@@ -118,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         tileOpenVpnSettingsLabel = findViewById(R.id.tileOpenVpnSettingsLabel)
         tileOpenEmailSettingsLabel = findViewById(R.id.tileOpenEmailSettingsLabel)
         tileOpenGeneralSettingsLabel = findViewById(R.id.tileOpenGeneralSettingsLabel)
+        tileHelpLabel = findViewById(R.id.tileHelpLabel)
 
         // 点击事件绑定
         tileStartControl.setOnClickListener { toggleVpn() }
@@ -127,6 +131,14 @@ class MainActivity : AppCompatActivity() {
         tileBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
         tilePermissions.setOnClickListener { requestAutoStartPermission() }
         tileOpenVpnSettings.setOnClickListener { openSystemVpnSettings() }
+        tileHelp.setOnClickListener {
+            try {
+                val uri = android.net.Uri.parse("https://doc.80fafa.com/develop/intro.html")
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
+            } catch (_: Exception) {
+                android.widget.Toast.makeText(this, "无法打开帮助页面", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
 
         // 统一用 app 级偏好，仅用于回退读取
         appPrefs = getSharedPreferences("stopnet_prefs", Context.MODE_PRIVATE)
