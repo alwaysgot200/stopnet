@@ -51,10 +51,106 @@ jobs:
         with:
           name: app-release-apk
           path: app/build/outputs/apk/release/*.apk
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+
+      - name: Create GitHub Release and upload APK
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          files: app/build/outputs/apk/release/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = context.ref.replace(/^refs\/tags\//, '');
+            const releaseName = `StopNet ${tag}`;
+
+            // 创建或获取当前 tag 的 Release
+            let release;
+            try {
+              const { data } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              release = data;
+            } catch {
+              const { data } = await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: tag,
+                name: releaseName,
+                body: releaseName,
+                make_latest: "false",
+              });
+              release = data;
+            }
+
+            // 上传构建出的 APK 文件
+            const dir = 'app/build/outputs/apk/release';
+            const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.apk')) : [];
+            if (files.length === 0) {
+              core.setFailed(`在 ${dir} 未找到 APK 文件`);
+            }
+
+            for (const file of files) {
+              const filePath = path.join(dir, file);
+              const stat = fs.statSync(filePath);
+
+              // 若当前 Release 中已有同名资产，则删除
+              const existing = release.assets?.find(a => a.name === file);
+              if (existing) {
+                await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existing.id });
+              }
+
+              await github.request('POST /repos/{owner}/{repo}/releases/{release_id}/assets{?name,label}', {
+                owner,
+                repo,
+                release_id: release.id,
+                name: file,
+                headers: {
+                  'content-type': 'application/vnd.android.package-archive',
+                  'content-length': stat.size,
+                },
+                data: fs.readFileSync(filePath),
+              });
+            }
+
+            // 维护一个自动更新的 Latest Release，并上传统一命名的最新 APK
+            let latestRelease;
+            try {
+              latestRelease = (await github.rest.repos.getReleaseByTag({ owner, repo, tag: 'latest' })).data;
+            } catch {
+              latestRelease = (await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: 'latest',
+                name: 'Latest Release (Auto-maintained)',
+                body: '',
+                make_latest: "true",
+              })).data;
+            }
+
+            const latestName = 'app-release-latest.apk';
+            const existingLatest = latestRelease.assets?.find(a => a.name === latestName);
+            if (existingLatest) {
+              await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existingLatest.id });
+            }
+
+            const firstApkPath = path.join(dir, files[0]);
+            const statLatest = fs.statSync(firstApkPath);
+            await github.request('POST /repos/{owner}/{repo}/releases/{release_id}/assets{?name,label}', {
+              owner,
+              repo,
+              release_id: latestRelease.id,
+              name: latestName,
+              headers: {
+                'content-type': 'application/vnd.android.package-archive',
+                'content-length': statLatest.size,
+              },
+              data: fs.readFileSync(firstApkPath),
+            });
+
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: latestRelease.id,
+              body: `当前最新版本: ${tag}\n更新时间: ${new Date().toISOString()}`,
+              make_latest: "true",
+            });

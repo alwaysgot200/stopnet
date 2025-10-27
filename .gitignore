@@ -34,7 +34,7 @@ captures/
 *.apk
 *.ap_
 *.aab
-
+.emulator_logs
 # Keystore files (sensitive)
 *.jks
 *.keystore
