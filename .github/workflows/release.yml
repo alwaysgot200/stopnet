@@ -99,7 +99,7 @@ jobs:
                 await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existing.id });
               }
 
-              await github.request('POST /repos/{owner}/{repo}/releases/{release_id}/assets{?name,label}', {
+              await github.rest.repos.uploadReleaseAsset({
                 owner,
                 repo,
                 release_id: release.id,
@@ -135,7 +135,7 @@ jobs:
 
             const firstApkPath = path.join(dir, files[0]);
             const statLatest = fs.statSync(firstApkPath);
-            await github.request('POST /repos/{owner}/{repo}/releases/{release_id}/assets{?name,label}', {
+            await github.rest.repos.uploadReleaseAsset({
               owner,
               repo,
               release_id: latestRelease.id,
