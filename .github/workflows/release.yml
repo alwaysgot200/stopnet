@@ -87,6 +87,7 @@ jobs:
             const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.apk')) : [];
             if (files.length === 0) {
               core.setFailed(`在 ${dir} 未找到 APK 文件`);
+              return;
             }
 
             for (const file of files) {
