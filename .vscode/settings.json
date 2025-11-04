@@ -1,3 +1,4 @@
 {
-  "terminal.integrated.defaultProfile.windows": "Command Prompt"
+  "terminal.integrated.defaultProfile.windows": "Command Prompt",
+  "java.configuration.updateBuildConfiguration": "automatic"
 }

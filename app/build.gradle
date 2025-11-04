@@ -127,12 +127,33 @@ dependencies {
     implementation 'com.sun.mail:android-activation:1.6.7'
 }
 
-// Windows: 指定 SDK 工具与 AVD/包名（可通过 -Pxxx 覆盖）
-def emulatorExe = (project.findProperty("emulatorExe") ?: "D:\\programfiles\\Android\\SDK\\emulator\\emulator.exe").toString()
-def adbExe      = (project.findProperty("adbExe")      ?: "D:\\programfiles\\Android\\SDK\\platform-tools\\adb.exe").toString()
+// 跨平台：自动识别 OS 与 ANDROID_SDK_ROOT，允许通过 -Pxxx 覆盖
+def osName = System.getProperty("os.name").toLowerCase()
+def isMac = osName.contains("mac")
+def isWindows = osName.contains("windows")
+
+def sdkRootEnv = System.getenv("ANDROID_SDK_ROOT") ?: System.getenv("ANDROID_HOME")
+def defaultAdb = {
+    if (isWindows) return sdkRootEnv ? "${sdkRootEnv}\\platform-tools\\adb.exe" : "adb.exe"
+    return sdkRootEnv ? "${sdkRootEnv}/platform-tools/adb" : "adb"
+}.call()
+def defaultEmulator = {
+    if (isWindows) return sdkRootEnv ? "${sdkRootEnv}\\emulator\\emulator.exe" : "emulator.exe"
+    return sdkRootEnv ? "${sdkRootEnv}/emulator/emulator" : "emulator"
+}.call()
+
+def emulatorExe = (project.findProperty("emulatorExe") ?: defaultEmulator).toString()
+def adbExe      = (project.findProperty("adbExe")      ?: defaultAdb).toString()
 def avdName     = (project.findProperty("avdName")     ?: "Pixel_6_API_34").toString()
 // 优先使用默认配置中的 applicationId，其次允许通过 -PappId 覆盖
 def appId       = (project.findProperty("appId") ?: (android.defaultConfig.applicationId ?: "com.example.stopnet")).toString()
+
+// Genymotion（macOS）支持：useGenymotion=true/false/auto（默认 auto，在 macOS 且 gmtool 存在时启用）
+def gmtoolExe = (project.findProperty("gmtoolExe") ?: "/Applications/Genymotion.app/Contents/MacOS/gmtool").toString()
+def genyDeviceName = (project.findProperty("genyDeviceName") ?: "").toString()
+def useGenymotionProp = (project.findProperty("useGenymotion") ?: (isMac ? "auto" : "false")).toString()
+def gmtoolExists = new File(gmtoolExe).exists()
+def useGenymotion = (useGenymotionProp == "true") || (useGenymotionProp == "auto" && isMac && gmtoolExists)
 
 // 启动模拟器（若无已连接设备）
 tasks.register("startEmulator") {
@@ -159,8 +180,36 @@ tasks.register("startEmulator") {
             println("[startEmulator] Device is starting (offline/unauthorized); skip new emulator start.")
             return
         }
+
+        // macOS 优先尝试 Genymotion（若启用）
+        if (useGenymotion) {
+            println("[startEmulator] Using Genymotion on macOS.")
+            try {
+                if (genyDeviceName?.trim()) {
+                    println("[startEmulator] Attempting to start Genymotion device: '${genyDeviceName}'.")
+                    // 正确命令：gmtool admin start "<deviceName>"
+                    def res = exec {
+                        commandLine(gmtoolExe, "admin", "start", genyDeviceName)
+                        ignoreExitValue = true
+                    }
+                    if (res.exitValue != 0) {
+                        println("[startEmulator] gmtool admin start failed (exit=${res.exitValue}). Opening Genymotion app as fallback.")
+                        exec { commandLine("open", "-a", "Genymotion"); ignoreExitValue = true }
+                    }
+                } else {
+                    println("[startEmulator] Opening Genymotion app; please start a device manually.")
+                    exec { commandLine("open", "-a", "Genymotion"); ignoreExitValue = true }
+                }
+            } catch (Exception e) {
+                println("[startEmulator] WARNING: Failed to invoke Genymotion: ${e.message}")
+                println("[startEmulator] Fallback: opening Genymotion app.")
+                try { exec { commandLine("open", "-a", "Genymotion"); ignoreExitValue = true } } catch (Exception ignore) {}
+            }
+            // 交由 waitForDevice 轮询 ADB 连接与 boot_completed
+            return
+        }
         
-        // 检查是否已有模拟器进程在运行（避免重复启动）
+        // 使用 Android Emulator：检查是否已有模拟器进程在运行（避免重复启动）
         def listAvdOut = new ByteArrayOutputStream()
         try {
             exec {
@@ -187,7 +236,7 @@ tasks.register("startEmulator") {
             return
         }
         
-        println("[startEmulator] Starting emulator: ${avdName}")
+        println("[startEmulator] Starting Android Emulator AVD: ${avdName}")
 
         // 使用 ProcessBuilder 异步启动，并重定向输出避免缓冲区阻塞
         // 注意：Windows 下若日志文件位于 build 目录，会导致 gradlew clean 删除失败（文件句柄被占用）。
@@ -380,6 +429,50 @@ tasks.register('installDebugAndLogcat') {
         // 仅输出本应用进程的 WARN/ERROR/崩溃 + 自定义 stopnet 调试日志
         exec {
             commandLine adbExe, 'logcat', '--pid', pid, '-v', 'time', 'stopnet:D', 'AndroidRuntime:E', '*:W'
+        }
+    }
+}
+
+// 停止应用（跨平台使用 adbExe 和 appId）
+tasks.register('stopApp') {
+    doLast {
+        println "[stopApp] Stopping ${appId}"
+        try {
+            exec { commandLine adbExe, 'shell', 'am', 'force-stop', appId; ignoreExitValue = true }
+        } catch (Exception e) {
+            println "[stopApp] WARNING: ${e.message}"
+        }
+    }
+}
+
+// 关闭模拟器：macOS Genymotion 优先；否则 Android Emulator
+tasks.register('killEmulator') {
+    doLast {
+        if (useGenymotion) {
+            println "[killEmulator] Using Genymotion stop sequence"
+            try {
+                if (genyDeviceName?.trim()) {
+                    def res = exec { commandLine gmtoolExe, 'admin', 'stop', genyDeviceName; ignoreExitValue = true }
+                    println "[killEmulator] gmtool admin stop exit=${res.exitValue}"
+                    if (res.exitValue != 0) {
+                        println "[killEmulator] Fallback: quitting Genymotion app"
+                        exec { commandLine 'osascript', '-e', 'tell application "Genymotion" to quit'; ignoreExitValue = true }
+                    }
+                } else {
+                    println "[killEmulator] No device name; quitting Genymotion app"
+                    exec { commandLine 'osascript', '-e', 'tell application "Genymotion" to quit'; ignoreExitValue = true }
+                }
+            } catch (Exception e) {
+                println "[killEmulator] WARNING: ${e.message}"
+                try { exec { commandLine 'osascript', '-e', 'tell application "Genymotion" to quit'; ignoreExitValue = true } } catch (Exception ignore) {}
+            }
+        } else {
+            println "[killEmulator] Using Android Emulator kill"
+            try {
+                exec { commandLine adbExe, '-e', 'emu', 'kill'; ignoreExitValue = true }
+            } catch (Exception e) {
+                println "[killEmulator] WARNING: ${e.message}"
+            }
         }
     }
 }

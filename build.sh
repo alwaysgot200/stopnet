@@ -55,21 +55,11 @@ do_installRelease() { gradle cleanSafe && gradle build && gradle installRelease;
 do_assembleRelease() { gradle cleanSafe && gradle build && gradle assembleRelease; }
 
 do_stopApp() {
-  if has_cmd adb; then
-    adb shell am force-stop "$APP_ID"
-  else
-    echo "未找到 adb，请先安装 Android Platform-Tools。"
-    return 1
-  fi
+  gradle :app:stopApp
 }
 
 do_killEmulator() {
-  if has_cmd adb; then
-    adb -e emu kill
-  else
-    echo "未找到 adb，请先安装 Android Platform-Tools。"
-    return 1
-  fi
+  gradle :app:killEmulator
 }
 
 while true; do
